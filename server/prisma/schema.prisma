@@ -1,0 +1,43 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  role      String   // "admin", "referee", "player", "spectator"
+  createdAt DateTime @default(now())
+}
+
+model Player {
+  id        Int      @id @default(autoincrement())
+  name      String
+  avatarUrl String?
+  ranking   Int      @default(1000)
+  matches   MatchPlayer[]
+}
+
+model Match {
+  id        Int      @id @default(autoincrement())
+  court     String
+  status    String   // "scheduled", "ongoing", "completed"
+  format    String   // "best_of_3", "rally"
+  players   MatchPlayer[]
+  createdAt DateTime @default(now())
+}
+
+model MatchPlayer {
+  id       Int   @id @default(autoincrement())
+  matchId  Int
+  playerId Int
+  score    Int   @default(0)
+
+  match  Match  @relation(fields: [matchId], references: [id])
+  player Player @relation(fields: [playerId], references: [id])
+}
