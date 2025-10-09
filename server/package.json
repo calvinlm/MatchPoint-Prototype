@@ -6,8 +6,11 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "node --watch src/server.js",
-    "start": "node src/server.js",
-    "prisma": "prisma"
+    "build": "tsc",
+    "prisma": "prisma",
+    "postinstall": "prisma generate",
+    "start": "node src/server.js"
+
   },
   "dependencies": {
     "@prisma/client": "^6.16.2",
