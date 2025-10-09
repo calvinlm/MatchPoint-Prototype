@@ -1,0 +1,72 @@
+[
+  {
+    "name": "Ethan Reyes",
+    "age": 24,
+    "gender": "Male",
+    "address": "Manila, Metro Manila",
+    "contact": "0917-123-4567"
+  },
+  {
+    "name": "Maya Santos",
+    "age": 21,
+    "gender": "Female",
+    "address": "Quezon City, Metro Manila",
+    "contact": "0922-234-5678"
+  },
+  {
+    "name": "Carlos dela Cruz",
+    "age": 29,
+    "gender": "Male",
+    "address": "Cebu City, Cebu",
+    "contact": "0905-345-6789"
+  },
+  {
+    "name": "Ariana Villanueva",
+    "age": 27,
+    "gender": "Female",
+    "address": "Davao City, Davao del Sur",
+    "contact": "0935-456-7890"
+  },
+  {
+    "name": "Noah Mercado",
+    "age": 32,
+    "gender": "Male",
+    "address": "Iloilo City, Iloilo",
+    "contact": "0943-567-8901"
+  },
+  {
+    "name": "Luna Navarro",
+    "age": 19,
+    "gender": "Female",
+    "address": "Bacolod, Negros Occidental",
+    "contact": "0918-678-9012"
+  },
+  {
+    "name": "Miguel Ramos",
+    "age": 26,
+    "gender": "Male",
+    "address": "Baguio, Benguet",
+    "contact": "0928-789-0123"
+  },
+  {
+    "name": "Isla Fernandez",
+    "age": 23,
+    "gender": "Female",
+    "address": "Zamboanga City, Zamboanga del Sur",
+    "contact": "0956-890-1234"
+  },
+  {
+    "name": "Diego Castillo",
+    "age": 28,
+    "gender": "Male",
+    "address": "Cagayan de Oro, Misamis Oriental",
+    "contact": "0967-901-2345"
+  },
+  {
+    "name": "Rhea Alonzo",
+    "age": 30,
+    "gender": "Female",
+    "address": "Legazpi, Albay",
+    "contact": "0978-012-3456"
+  }
+]

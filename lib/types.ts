@@ -9,11 +9,14 @@ export interface User {
 }
 
 export interface Player {
-  id: string
-  firstName: string
-  lastName: string
-  rating?: number
-  club?: string
+  id: number
+  name: string
+  age: number
+  gender: "MALE" | "FEMALE"
+  address: string
+  contactNumber: string
+  createdAt: string
+  checkedIn?: boolean
 }
 
 export interface Team {

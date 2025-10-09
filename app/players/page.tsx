@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
 import { PlayerCard } from "@/components/players/player-card"
 import { TeamCard } from "@/components/players/team-card"
@@ -12,138 +12,90 @@ import { Badge } from "@/components/ui/badge"
 import type { UserRole, Player, Team } from "@/lib/types"
 import { Search, UserPlus, Users, Download, Upload } from "lucide-react"
 
-// Mock data for demonstration
-const mockPlayers: (Player & {
-  email?: string
-  phone?: string
-  location?: string
-  checkedIn?: boolean
-  rating?: number
-})[] = [
-  {
-    id: "1",
-    firstName: "John",
-    lastName: "Smith",
-    email: "john.smith@email.com",
-    phone: "(555) 123-4567",
-    location: "San Francisco, CA",
-    checkedIn: true,
-    rating: 4.2,
-  },
-  {
-    id: "2",
-    firstName: "Jane",
-    lastName: "Doe",
-    email: "jane.doe@email.com",
-    phone: "(555) 987-6543",
-    location: "Los Angeles, CA",
-    checkedIn: false,
-    rating: 3.8,
-  },
-  {
-    id: "3",
-    firstName: "Mike",
-    lastName: "Johnson",
-    email: "mike.j@email.com",
-    phone: "(555) 456-7890",
-    location: "San Diego, CA",
-    checkedIn: true,
-    rating: 4.5,
-  },
-  {
-    id: "4",
-    firstName: "Sarah",
-    lastName: "Wilson",
-    email: "sarah.w@email.com",
-    phone: "(555) 321-0987",
-    location: "Sacramento, CA",
-    checkedIn: true,
-    rating: 4.0,
-  },
-]
-
+// 🔹 TEMPORARY mock teams (keep until team feature backend is ready)
 const mockTeams: (Team & {
   eventName?: string
   seed?: number
 })[] = [
   {
     id: "1",
-    players: [mockPlayers[0], mockPlayers[1]],
+    players: [
+      { id: "1", name: "John Smith" } as unknown as Player,
+      { id: "2", name: "Jane Doe" } as unknown as Player,
+    ],
     eventId: "1",
     eventName: "Men's Doubles",
     seed: 1,
   },
   {
     id: "2",
-    players: [mockPlayers[2], mockPlayers[3]],
+    players: [
+      { id: "3", name: "Mike Johnson" } as unknown as Player,
+      { id: "4", name: "Sarah Wilson" } as unknown as Player,
+    ],
     eventId: "2",
     eventName: "Women's Doubles",
     seed: 2,
   },
 ]
 
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8080"
+
 export default function PlayersPage() {
   const userRoles: UserRole[] = ["director"]
+  const [players, setPlayers] = useState<Player[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [eventFilter, setEventFilter] = useState("all")
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const filteredPlayers = mockPlayers.filter((player) => {
-    const matchesSearch =
-      `${player.firstName} ${player.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      player.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  // 🔹 Fetch players from backend
+  useEffect(() => {
+    async function loadPlayers() {
+      try {
+        const res = await fetch(`${API_BASE}/api/players`)
+        if (!res.ok) throw new Error("Failed to fetch players.")
+        const data = await res.json()
+        setPlayers(data)
+      } catch (err: any) {
+        console.error("Error fetching players:", err)
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadPlayers()
+  }, [])
 
-    const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "checked-in" && player.checkedIn) ||
-      (statusFilter === "not-checked-in" && !player.checkedIn)
+  // 🔹 Filters for players
+  const filteredPlayers = players.filter((player) =>
+    player.name?.toLowerCase().includes(searchTerm.toLowerCase())
+  )
 
-    return matchesSearch && matchesStatus
-  })
+  const handleEditPlayer = (id: string) => console.log(`[v1] Edit player ${id}`)
+  const handleDeletePlayer = (id: string) => console.log(`[v1] Delete player ${id}`)
+  const handleToggleCheckIn = (id: string) => console.log(`[v1] Toggle check-in ${id}`)
+  const handleEditTeam = (id: string) => console.log(`[v1] Edit team ${id}`)
+  const handleDeleteTeam = (id: string) => console.log(`[v1] Delete team ${id}`)
+  const handleAddPlayerToTeam = (id: string) => console.log(`[v1] Add player to team ${id}`)
 
-  const filteredTeams = mockTeams.filter((team) => {
-    const matchesSearch =
-      team.players.some((player) =>
-        `${player.firstName} ${player.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()),
-      ) || team.eventName?.toLowerCase().includes(searchTerm.toLowerCase())
+  const totalPlayers = players.length
 
-    const matchesEvent = eventFilter === "all" || team.eventId === eventFilter
-
-    return matchesSearch && matchesEvent
-  })
-
-  const handleEditPlayer = (playerId: string) => {
-    console.log(`[v0] Editing player ${playerId}`)
-    // Implementation would open edit modal
+  if (loading) {
+    return (
+      <AppLayout userRoles={userRoles} userName="Tournament Director">
+        <div className="p-10 text-muted-foreground">Loading players...</div>
+      </AppLayout>
+    )
   }
 
-  const handleDeletePlayer = (playerId: string) => {
-    console.log(`[v0] Deleting player ${playerId}`)
-    // Implementation would confirm and delete player
+  if (error) {
+    return (
+      <AppLayout userRoles={userRoles} userName="Tournament Director">
+        <div className="p-10 text-red-600">Error: {error}</div>
+      </AppLayout>
+    )
   }
-
-  const handleToggleCheckIn = (playerId: string) => {
-    console.log(`[v0] Toggling check-in for player ${playerId}`)
-    // Implementation would update check-in status
-  }
-
-  const handleEditTeam = (teamId: string) => {
-    console.log(`[v0] Editing team ${teamId}`)
-    // Implementation would open team edit modal
-  }
-
-  const handleDeleteTeam = (teamId: string) => {
-    console.log(`[v0] Deleting team ${teamId}`)
-    // Implementation would confirm and delete team
-  }
-
-  const handleAddPlayerToTeam = (teamId: string) => {
-    console.log(`[v0] Adding player to team ${teamId}`)
-    // Implementation would open player selection modal
-  }
-
-  const checkedInCount = mockPlayers.filter((p) => p.checkedIn).length
-  const totalPlayers = mockPlayers.length
 
   return (
     <AppLayout userRoles={userRoles} userName="Tournament Director">
@@ -175,7 +127,7 @@ export default function PlayersPage() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by name or email..."
+              placeholder="Search by name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -191,39 +143,22 @@ export default function PlayersPage() {
               <SelectItem value="not-checked-in">Not Checked In</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={eventFilter} onValueChange={setEventFilter}>
-            <SelectTrigger className="w-full sm:w-40">
-              <SelectValue placeholder="Event" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Events</SelectItem>
-              <SelectItem value="1">Men's Doubles</SelectItem>
-              <SelectItem value="2">Women's Doubles</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
 
         {/* Stats */}
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <Badge variant="outline">{totalPlayers} Total Players</Badge>
-            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-              {checkedInCount} Checked In
-            </Badge>
-            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
-              {totalPlayers - checkedInCount} Pending
-            </Badge>
-            <Badge variant="outline">{mockTeams.length} Teams</Badge>
-          </div>
+          <Badge variant="outline">{totalPlayers} Total Players</Badge>
+          <Badge variant="outline">{mockTeams.length} Teams (mock)</Badge>
         </div>
 
-        {/* Content Tabs */}
+        {/* Tabs */}
         <Tabs defaultValue="players" className="space-y-4">
           <TabsList>
             <TabsTrigger value="players">Players</TabsTrigger>
-            <TabsTrigger value="teams">Teams</TabsTrigger>
+            <TabsTrigger value="teams">Teams (Mock)</TabsTrigger>
           </TabsList>
 
+          {/* 🔹 Real Players */}
           <TabsContent value="players" className="space-y-4">
             {filteredPlayers.length === 0 ? (
               <div className="text-center py-12">
@@ -246,16 +181,17 @@ export default function PlayersPage() {
             )}
           </TabsContent>
 
+          {/* 🔹 Mock Teams (temporary) */}
           <TabsContent value="teams" className="space-y-4">
-            {filteredTeams.length === 0 ? (
+            {mockTeams.length === 0 ? (
               <div className="text-center py-12">
                 <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-foreground mb-2">No teams found</h3>
-                <p className="text-muted-foreground">Try adjusting your search or create new teams</p>
+                <p className="text-muted-foreground">Team feature coming soon</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredTeams.map((team) => (
+                {mockTeams.map((team) => (
                   <TeamCard
                     key={team.id}
                     team={team}

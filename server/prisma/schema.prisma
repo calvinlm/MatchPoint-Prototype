@@ -7,37 +7,97 @@ generator client {
   provider = "prisma-client-js"
 }
 
-model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  password  String
-  role      String   // "admin", "referee", "player", "spectator"
-  createdAt DateTime @default(now())
+/**
+ * ===== ENUMS =====
+ */
+enum Gender {
+  MALE
+  FEMALE
 }
 
+enum AgeBracket {
+  A18 // 18+
+  A35 // 35+
+  A55 // 55+
+  JUNIOR // Junior
+}
+
+enum Division {
+  MS // Men's Single
+  MD // Men's Doubles
+  WS // Women's Single
+  WD // Women's Doubles
+  XD // Mixed Doubles
+}
+
+enum Level {
+  NOV // Novice
+  INT // Intermediate
+  ADV // Advanced
+  OPN // Open
+}
+
+/**
+ * ===== CORE TABLES =====
+ */
 model Player {
-  id        Int      @id @default(autoincrement())
-  name      String
-  avatarUrl String?
-  ranking   Int      @default(1000)
-  matches   MatchPlayer[]
+  id            Int      @id @default(autoincrement())
+  name          String
+  age           Int
+  gender        Gender
+  address       String
+  contactNumber String
+  createdAt     DateTime @default(now())
+
+  // Teams (singles = 1 member, doubles = 2 members)
+  teamMembers TeamMember[]
 }
 
-model Match {
-  id        Int      @id @default(autoincrement())
-  court     String
-  status    String   // "scheduled", "ongoing", "completed"
-  format    String   // "best_of_3", "rally"
-  players   MatchPlayer[]
-  createdAt DateTime @default(now())
+model Category {
+  id         Int        @id @default(autoincrement())
+  ageBracket AgeBracket
+  division   Division
+  level      Level
+
+  teams Team[]
+
+  // keep one row per unique combo
+  @@unique([ageBracket, division, level])
 }
 
-model MatchPlayer {
-  id       Int   @id @default(autoincrement())
-  matchId  Int
+/**
+ * Team: code = AGE/DIVISION/LEVEL/SEQ -> e.g., 18MD_INT_001
+ * We store:
+ * - ordinal: per-category running number, filled by a DB trigger
+ * - teamCode: formatted code, built in the same trigger
+ */
+model Team {
+  id         Int      @id @default(autoincrement())
+  categoryId Int
+  ordinal    Int      @default(0) // set by trigger
+  teamCode   String   @unique // set by trigger (e.g., 18MD_INT_001)
+  createdAt  DateTime @default(now())
+
+  category Category     @relation(fields: [categoryId], references: [id])
+  members  TeamMember[]
+
+  @@index([categoryId, ordinal])
+}
+
+/**
+ * TeamMember: join players to teams (1 for singles, 2 for doubles)
+ * Optional "slot" if you want to keep order (1 or 2).
+ */
+model TeamMember {
+  id       Int  @id @default(autoincrement())
+  teamId   Int
   playerId Int
-  score    Int   @default(0)
+  slot     Int?
 
-  match  Match  @relation(fields: [matchId], references: [id])
+  team   Team   @relation(fields: [teamId], references: [id])
   player Player @relation(fields: [playerId], references: [id])
+
+  @@unique([teamId, playerId])
+  @@index([teamId])
+  @@index([playerId])
 }

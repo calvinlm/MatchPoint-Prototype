@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -11,19 +10,11 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
   LayoutDashboard,
-  Trophy,
-  GitBranch,
-  Quote as Queue,
-  Play,
-  FileText,
   Users,
-  Calendar,
-  BarChart3,
-  Megaphone,
-  Gamepad2,
-  User,
-  Monitor,
-  Settings,
+  GitBranch,
+  Clock3,
+  FileText,
+  User as UserIcon,
   Menu,
   X,
 } from "lucide-react"
@@ -38,19 +29,11 @@ interface NavigationItem {
 
 const navigationItems: NavigationItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, permission: "view_dashboard" },
-  { label: "Events & Brackets", href: "/events", icon: Trophy, permission: "manage_events" },
-  { label: "Bracket Builder", href: "/brackets", icon: GitBranch, permission: "manage_brackets" },
-  { label: "Match Queue", href: "/queue", icon: Queue, permission: "manage_queue" },
-  { label: "Live Matches", href: "/matches", icon: Play, permission: "view_matches" },
-  { label: "Score Sheets", href: "/score-sheets", icon: FileText, permission: "manage_events" },
-  { label: "Players & Teams", href: "/players", icon: Users, permission: "manage_events" },
-  { label: "Schedule", href: "/schedule", icon: Calendar, permission: "view_schedule" },
-  { label: "Standings", href: "/standings", icon: BarChart3, permission: "view_brackets" },
-  { label: "Announcer Console", href: "/announcer", icon: Megaphone, permission: "call_matches" },
-  { label: "Referee Pad", href: "/scoring", icon: Gamepad2, permission: "score_matches" },
-  { label: "My Matches", href: "/player", icon: User, permission: "view_my_matches" },
-  { label: "Scoreboard", href: "/scoreboard", icon: Monitor, permission: "view_matches" },
-  { label: "Settings", href: "/settings", icon: Settings, permission: "manage_settings" },
+  { label: "Player Details", href: "/players", icon: UserIcon, permission: "manage_events" },
+  { label: "Manage Teams", href: "/teams", icon: Users, permission: "manage_events" },
+  { label: "Bracket Setup", href: "/brackets", icon: GitBranch, permission: "manage_brackets" },
+  { label: "Match Queue", href: "/queue", icon: Clock3, permission: "manage_queue" },
+  { label: "Score Sheet", href: "/score-sheets", icon: FileText, permission: "manage_events" },
 ]
 
 interface NavigationProps {
@@ -58,13 +41,15 @@ interface NavigationProps {
   isMobile?: boolean
 }
 
+const baseItem =
+  "group flex items-center gap-3 pl-8 pr-4 py-3 text-nav leading-6 font-medium text-brand hover:opacity-80"
+
 export function Navigation({ userRoles, isMobile = false }: NavigationProps) {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
+  const visibleItems = navigationItems.filter((i) => hasPermission(userRoles, i.permission))
 
-  const visibleItems = navigationItems.filter((item) => hasPermission(userRoles, item.permission))
-
-  if (isMobile) {
+   if (isMobile) {
     return (
       <>
         <Button variant="ghost" size="sm" onClick={() => setIsOpen(!isOpen)} className="md:hidden">
@@ -75,7 +60,11 @@ export function Navigation({ userRoles, isMobile = false }: NavigationProps) {
           <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm md:hidden">
             <div className="fixed left-0 top-0 h-full w-64 bg-sidebar border-r border-sidebar-border p-4">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold text-sidebar-foreground">MatchPoint</h2>
+                <img 
+                  src="/logo.svg"
+                  alt="Matchpoint Logo"
+                  className="w-40 h-auto mb-1"  // you can adjust w-40 as needed
+                />
                 <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
                   <X className="h-5 w-5" />
                 </Button>
@@ -111,10 +100,14 @@ export function Navigation({ userRoles, isMobile = false }: NavigationProps) {
 
   return (
     <nav className="hidden md:flex md:flex-col md:w-64 md:bg-sidebar md:border-r md:border-sidebar-border">
-      <div className="p-6">
-        <h1 className="text-xl font-bold text-sidebar-foreground">MatchPoint</h1>
-        <p className="text-sm text-sidebar-foreground/70">Tournament Manager</p>
+      <div className="pt-6 px-6 pb-0 flex flex-col items-start">
+        <img 
+          src="/logo.svg"
+          alt="Matchpoint Logo"
+          className="w-70 h-auto mb-1"  // you can adjust w-40 as needed
+        />
       </div>
+
       <div className="flex-1 px-4 pb-4">
         <div className="space-y-1">
           {visibleItems.map((item) => {

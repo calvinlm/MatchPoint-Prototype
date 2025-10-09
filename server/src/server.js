@@ -13,6 +13,7 @@ import matchesRouter from './routes/matches.js'
 import uploadRouter from './routes/upload.js'
 import authRoutes from "./routes/auth.js";
 import matchRoutes from "./routes/match.js";
+import playersRoutes from "./routes/players.js";
 
 const app = express()
 
@@ -29,6 +30,7 @@ app.use('/api/matches', matchesRouter)
 app.use('/api/upload', uploadRouter)
 app.use("/auth", authRoutes);
 app.use("/matches", matchRoutes);
+app.use("/api/players", playersRoutes);
 
 // 404
 app.use((req, res) => {

@@ -63,12 +63,12 @@ const mockEvents = [
     startDate: new Date("2024-03-14"),
   },
 ]
-
 export default function EventsPage() {
   const userRoles: UserRole[] = ["director"]
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [formatFilter, setFormatFilter] = useState<string>("all")
+
 
   const filteredEvents = mockEvents.filter((event) => {
     const matchesSearch =

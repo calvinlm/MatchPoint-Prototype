@@ -11,7 +11,7 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.35 0 0);
   /* Updated primary to pickle green #2E7D32 */
-  --primary: oklch(0.45 0.15 142);
+  --primary: oklch(0.3791 0.153 274.95);
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.96 0 0);
   --secondary-foreground: oklch(0.35 0 0);
@@ -36,7 +36,7 @@
   /* Updated sidebar colors for tournament interface */
   --sidebar: oklch(0.98 0 0);
   --sidebar-foreground: oklch(0.35 0 0);
-  --sidebar-primary: oklch(0.45 0.15 142);
+  --sidebar-primary: oklch(0.3791 0.153 274.95);
   --sidebar-primary-foreground: oklch(1 0 0);
   --sidebar-accent: oklch(0.96 0 0);
   --sidebar-accent-foreground: oklch(0.35 0 0);

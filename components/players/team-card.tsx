@@ -38,12 +38,12 @@ export function TeamCard({ team, onEdit, onDelete, onAddPlayer }: TeamCardProps)
               <div key={player.id} className="flex items-center gap-3">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                    {player.firstName[0]}
-                    {player.lastName[0]}
+                    {player.name[0]}
+                    {player.name[0]}
                   </AvatarFallback>
                 </Avatar>
                 <span className="text-sm">
-                  {player.firstName} {player.lastName}
+                  {player.name}
                 </span>
               </div>
             ))}
