@@ -24,13 +24,7 @@ const allowedOrigins = [
 ]
 
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-    } else {
-      callback(null, true)
-      callback(new Error(`CORS blocked for origin: ${origin}`))
-    }
-  },
+  origin: allowedOrigins,
   credentials: true,
 }))
 
@@ -41,6 +35,7 @@ app.use(express.urlencoded({ extended: true }))
 app.use(morgan('dev'))
 
 // ✅ Routes
+app.get("/health", (req, res) => res.status(200).send("ok"))
 app.use('/health', healthRouter)
 app.use('/api/me', meRouter)
 app.use('/api/matches', matchesRouter)
