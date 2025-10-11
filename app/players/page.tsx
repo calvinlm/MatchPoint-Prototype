@@ -58,7 +58,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "https://matchpoint-prototy
 type ViewMode = "grid" | "list"
 type SortKey = "name" | "gender" | "age" | "status"
 type SortDir = "asc" | "desc"
-type AgeCat = "all" | "junior" | "18plus" | "55plus"
+type AgeCat = "all" | "junior" | "18plus" | "35plus" | "55plus"
 type GenderFilter = "all" | "male" | "female"
 
 export default function PlayersPage() {
@@ -230,11 +230,14 @@ async function handleEditSubmit(e: React.FormEvent) {
   // Helpers
   const normGender = (g: any) => String(g ?? "").toLowerCase().trim()
   const inAgeCat = (ageVal: any, cat: AgeCat) => {
-    const ageNum = Number.isFinite(Number(ageVal)) ? Number(ageVal) : null
-    if (cat === "all" || ageNum === null) return cat === "all"
-    if (cat === "junior") return ageNum <= 17
-    if (cat === "18plus") return ageNum >= 18
-    if (cat === "55plus") return ageNum >= 55
+    const n = Number(ageVal)
+    const age = Number.isFinite(n) ? n : null
+
+    if (cat === "all" || age === null) return cat === "all"
+    if (cat === "junior") return age <= 17
+    if (cat === "18plus") return age >= 18 && age <= 34
+    if (cat === "35plus") return age >= 35 && age <= 54
+    if (cat === "55plus") return age >= 55
     return true
   }
 
@@ -359,7 +362,6 @@ async function confirmDelete() {
     setIsDeleting(false)
   }
 }
-
 
   const handleEditTeam = (id: string) => console.log(`[v1] Edit team ${id}`)
   const handleDeleteTeam = (id: string) => console.log(`[v1] Delete team ${id}`)
@@ -666,6 +668,7 @@ async function confirmDelete() {
               <SelectItem value="all">All Ages</SelectItem>
               <SelectItem value="junior">Junior (≤17)</SelectItem>
               <SelectItem value="18plus">18+</SelectItem>
+              <SelectItem value="35plus">35+</SelectItem>
               <SelectItem value="55plus">55+</SelectItem>
             </SelectContent>
           </Select>

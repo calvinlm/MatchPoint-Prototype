@@ -6,8 +6,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Matchpoint',
-  description: 'Created with v0',
-  generator: 'v0.app',
+  description: 'Created by Calvin La Madrid'
 }
 
 export default function RootLayout({
