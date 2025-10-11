@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
 import { PlayerCard } from "@/components/players/player-card"
+import { PlayerRow } from "@/components/players/player-row"
 import { TeamCard } from "@/components/players/team-card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,13 +11,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import type { UserRole, Player, Team } from "@/lib/types"
-import { Search, UserPlus, Users, Download, Upload } from "lucide-react"
+import {
+  Search,
+  UserPlus,
+  Users,
+  Download,
+  Upload,
+  LayoutGrid,
+  List,
+  ArrowUpDown,
+  ChevronUp,
+  ChevronDown,
+} from "lucide-react"
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter,
+  DialogHeader, DialogTitle, DialogTrigger,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 
-// 🔹 TEMPORARY mock teams (keep until team feature backend is ready)
-const mockTeams: (Team & {
-  eventName?: string
-  seed?: number
-})[] = [
+
+const mockTeams: (Team & { eventName?: string; seed?: number })[] = [
   {
     id: "1",
     players: [
@@ -41,15 +55,115 @@ const mockTeams: (Team & {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "https://matchpoint-prototype.onrender.com"
 
+type ViewMode = "grid" | "list"
+type SortKey = "name" | "gender" | "age" | "status"
+type SortDir = "asc" | "desc"
+type AgeCat = "all" | "junior" | "18plus" | "55plus"
+type GenderFilter = "all" | "male" | "female"
+
 export default function PlayersPage() {
   const userRoles: UserRole[] = ["director"]
   const [players, setPlayers] = useState<Player[]>([])
   const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
+  const [statusFilter, setStatusFilter] = useState<"all" | "checked-in" | "not-checked-in">("all")
+
+  // Add Player modal state
+const [addOpen, setAddOpen] = useState(false)
+const [isSubmitting, setIsSubmitting] = useState(false)
+const [addError, setAddError] = useState<string | null>(null)
+
+type NewPlayerForm = {
+  name: string
+  gender?: string // "male" | "female"
+  age?: number
+  contactNumber?: string
+  address?: string
+  checkedIn: boolean
+}
+
+const [form, setForm] = useState<NewPlayerForm>({
+  name: "",
+  gender: undefined,
+  age: undefined,
+  contactNumber: "",
+  address: "",
+  checkedIn: false,
+})
+
+function normalizeGenderForAPI(g?: string) {
+  if (!g) return undefined
+  const v = g.trim().toUpperCase()
+  // If your Prisma expects "MALE"/"FEMALE", this will satisfy it.
+  // If it expects other values, adjust mapping here.
+  if (v === "MALE" || v === "FEMALE") return v
+  return undefined
+}
+
+async function handleAddSubmit(e: React.FormEvent) {
+  e.preventDefault()
+  setAddError(null)
+
+  if (!form.name.trim()) {
+    setAddError("Name is required.")
+    return
+  }
+
+  const payload: Record<string, any> = {
+    name: form.name.trim(),
+    // send uppercase enum if backend expects it
+    gender: normalizeGenderForAPI(form.gender),
+    age: typeof form.age === "number" ? form.age : undefined,
+    contactNumber: form.contactNumber?.trim() || undefined,
+    address: form.address?.trim() || undefined,
+    checkedIn: !!form.checkedIn,
+  }
+
+  setIsSubmitting(true)
+  try {
+    const res = await fetch(`${API_BASE}/api/players`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "")
+      throw new Error(text || "Failed to create player.")
+    }
+
+    const created = await res.json()
+
+    // Prepend to list so it appears immediately
+    setPlayers((prev) => [created, ...prev])
+
+    // Reset and close
+    setForm({
+      name: "",
+      gender: undefined,
+      age: undefined,
+      contactNumber: "",
+      address: "",
+      checkedIn: false,
+    })
+    setAddOpen(false)
+  } catch (err: any) {
+    setAddError(err?.message || "Failed to create player.")
+  } finally {
+    setIsSubmitting(false)
+  }
+}
+
+
+  // NEW: category filters
+  const [ageCat, setAgeCat] = useState<AgeCat>("all")
+  const [genderFilter, setGenderFilter] = useState<GenderFilter>("all")
+
+  const [viewMode, setViewMode] = useState<ViewMode>("list")
+  const [sortKey, setSortKey] = useState<SortKey>("name")
+  const [sortDir, setSortDir] = useState<SortDir>("asc")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // 🔹 Fetch players from backend
   useEffect(() => {
     async function loadPlayers() {
       try {
@@ -67,9 +181,83 @@ export default function PlayersPage() {
     loadPlayers()
   }, [])
 
-  // 🔹 Filters for players
-  const filteredPlayers = players.filter((player) =>
-    player.name?.toLowerCase().includes(searchTerm.toLowerCase())
+  // Helpers
+  const normGender = (g: any) => String(g ?? "").toLowerCase().trim()
+  const inAgeCat = (ageVal: any, cat: AgeCat) => {
+    const ageNum = Number.isFinite(Number(ageVal)) ? Number(ageVal) : null
+    if (cat === "all" || ageNum === null) return cat === "all"
+    if (cat === "junior") return ageNum <= 17
+    if (cat === "18plus") return ageNum >= 18
+    if (cat === "55plus") return ageNum >= 55
+    return true
+  }
+
+  // Filters for players (name + status + NEW ageCat + genderFilter)
+  const filteredPlayers = useMemo(() => {
+    return players
+      .filter((p) => (p.name || "").toLowerCase().includes(searchTerm.toLowerCase()))
+      .filter((p) => {
+        if (statusFilter === "all") return true
+        const checked = (p as any).checkedIn === true
+        return statusFilter === "checked-in" ? checked : !checked
+      })
+      .filter((p) => {
+        if (genderFilter === "all") return true
+        const g = normGender((p as any).gender)
+        if (genderFilter === "male") return g === "male" || g === "m"
+        if (genderFilter === "female") return g === "female" || g === "f"
+        return true
+      })
+      .filter((p) => inAgeCat((p as any).age, ageCat))
+  }, [players, searchTerm, statusFilter, genderFilter, ageCat])
+
+  function getComparable(p: Player, key: SortKey) {
+    switch (key) {
+      case "name":
+        return (p.name || "").toLowerCase()
+      case "gender":
+        return normGender((p as any).gender)
+      case "age":
+        return Number((p as any).age ?? Number.POSITIVE_INFINITY) // empty age goes last
+      case "status": {
+        const checked = (p as any).checkedIn ? 1 : 2 // Checked first for ASC
+        return checked
+      }
+    }
+  }
+
+  const sortedPlayers = useMemo(() => {
+    const arr = [...filteredPlayers]
+    arr.sort((a, b) => {
+      const av = getComparable(a, sortKey)
+      const bv = getComparable(b, sortKey)
+      if (av < bv) return sortDir === "asc" ? -1 : 1
+      if (av > bv) return sortDir === "asc" ? 1 : -1
+      return 0
+    })
+    return arr
+  }, [filteredPlayers, sortKey, sortDir])
+
+  const toggleSort = (key: SortKey) => {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"))
+    } else {
+      setSortKey(key)
+      setSortDir("asc")
+    }
+  }
+
+  const SortLabel = ({ label, active }: { label: string; active: boolean }) => (
+    <span className="inline-flex items-center gap-1">
+      {label}
+      {!active ? (
+        <ArrowUpDown className="h-3.5 w-3.5 opacity-60" />
+      ) : sortDir === "asc" ? (
+        <ChevronUp className="h-3.5 w-3.5" />
+      ) : (
+        <ChevronDown className="h-3.5 w-3.5" />
+      )}
+    </span>
   )
 
   const handleEditPlayer = (id: string) => console.log(`[v1] Edit player ${id}`)
@@ -115,17 +303,116 @@ export default function PlayersPage() {
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
-            <Button>
-              <UserPlus className="h-4 w-4 mr-2" />
-              Add Player
-            </Button>
+            <Dialog open={addOpen} onOpenChange={setAddOpen}>
+                <Button asChild>
+              <DialogTrigger>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Add Player
+              </DialogTrigger>
+                </Button>
+              <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Add Player</DialogTitle>
+                  <DialogDescription>Enter the player details and save.</DialogDescription>
+                </DialogHeader>
+
+                <form onSubmit={handleAddSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Name<span className="text-destructive">*</span></Label>
+                      <Input
+                        id="name"
+                        value={form.name}
+                        onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
+                        required
+                        placeholder="e.g., John Smith"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="gender">Gender</Label>
+                      <Select
+                        value={form.gender}
+                        onValueChange={(v) => setForm((s) => ({ ...s, gender: v }))}
+                      >
+                        <SelectTrigger id="gender">
+                          <SelectValue placeholder="Select gender" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="male">Male</SelectItem>
+                          <SelectItem value="female">Female</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="age">Age</Label>
+                      <Input
+                        id="age"
+                        type="number"
+                        min={0}
+                        value={form.age ?? ""}
+                        onChange={(e) =>
+                          setForm((s) => ({ ...s, age: e.target.value ? Number(e.target.value) : undefined }))
+                        }
+                        placeholder="e.g., 24"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="contact">Contact Number</Label>
+                      <Input
+                        id="contact"
+                        value={form.contactNumber}
+                        onChange={(e) => setForm((s) => ({ ...s, contactNumber: e.target.value }))}
+                        placeholder="e.g., +63 912 345 6789"
+                      />
+                    </div>
+
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label htmlFor="address">Address</Label>
+                      <Input
+                        id="address"
+                        value={form.address}
+                        onChange={(e) => setForm((s) => ({ ...s, address: e.target.value }))}
+                        placeholder="e.g., Makati City, PH"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2 sm:col-span-2">
+                      <input
+                        id="checkedIn"
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-input"
+                        checked={form.checkedIn}
+                        onChange={(e) => setForm((s) => ({ ...s, checkedIn: e.target.checked }))}
+                      />
+                      <Label htmlFor="checkedIn">Mark as checked in</Label>
+                    </div>
+                  </div>
+
+                  {addError && (
+                    <p className="text-sm text-destructive">{addError}</p>
+                  )}
+
+                  <DialogFooter className="gap-2">
+                    <Button type="button" variant="ghost" onClick={() => setAddOpen(false)} disabled={isSubmitting}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={isSubmitting}>
+                      {isSubmitting ? "Saving..." : "Save Player"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
-        {/* Filters */}
+        {/* Filters + View toggle */}
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search by name..."
               value={searchTerm}
@@ -133,8 +420,13 @@ export default function PlayersPage() {
               className="pl-10"
             />
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-48">
+
+          {/* Status */}
+          <Select
+            value={statusFilter}
+            onValueChange={(v: "all" | "checked-in" | "not-checked-in") => setStatusFilter(v)}
+          >
+            <SelectTrigger className="w-full sm:w-40">
               <SelectValue placeholder="Check-in Status" />
             </SelectTrigger>
             <SelectContent>
@@ -143,12 +435,86 @@ export default function PlayersPage() {
               <SelectItem value="not-checked-in">Not Checked In</SelectItem>
             </SelectContent>
           </Select>
+
+          <Select
+            value={ageCat}
+            onValueChange={(v: AgeCat) => setAgeCat(v)}
+          >
+            <SelectTrigger className="w-full sm:w-40">
+              <SelectValue placeholder="Age Category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Ages</SelectItem>
+              <SelectItem value="junior">Junior (≤17)</SelectItem>
+              <SelectItem value="18plus">18+</SelectItem>
+              <SelectItem value="55plus">55+</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* NEW: Gender */}
+          <Select
+            value={genderFilter}
+            onValueChange={(v: GenderFilter) => setGenderFilter(v)}
+          >
+            <SelectTrigger className="w-full sm:w-36">
+              <SelectValue placeholder="Gender" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Gender</SelectItem>
+              <SelectItem value="male">Male</SelectItem>
+              <SelectItem value="female">Female</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* View toggle */}
+          <div className="flex rounded-md overflow-hidden border">
+            <Button
+              type="button"
+              variant={viewMode === "list" ? "default" : "ghost"}
+              className="rounded-none"
+              onClick={() => setViewMode("list")}
+              aria-label="List view"
+              title="List view"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant={viewMode === "grid" ? "default" : "ghost"}
+              className="rounded-none"
+              onClick={() => setViewMode("grid")}
+              aria-label="Grid view"
+              title="Grid view"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           <Badge variant="outline">{totalPlayers} Total Players</Badge>
           <Badge variant="outline">{mockTeams.length} Teams (mock)</Badge>
+          <Badge variant="outline" className="capitalize">View: {viewMode}</Badge>
+          <Badge variant="outline" className="capitalize">Sort: {sortKey} ({sortDir})</Badge>
+          {ageCat !== "all" && <Badge variant="secondary">Age: {ageCat === "junior" ? "≤17" : ageCat === "18plus" ? "18+" : "55+"}</Badge>}
+          {genderFilter !== "all" && <Badge variant="secondary">Gender: {genderFilter}</Badge>}
+          {statusFilter !== "all" && <Badge variant="secondary">Status: {statusFilter}</Badge>}
+          {(ageCat !== "all" || genderFilter !== "all" || statusFilter !== "all" || searchTerm) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7"
+              onClick={() => {
+                setSearchTerm("")
+                setStatusFilter("all")
+                setAgeCat("all")
+                setGenderFilter("all")
+              }}
+            >
+              Clear filters
+            </Button>
+          )}
         </div>
 
         {/* Tabs */}
@@ -160,23 +526,71 @@ export default function PlayersPage() {
 
           {/* 🔹 Real Players */}
           <TabsContent value="players" className="space-y-4">
-            {filteredPlayers.length === 0 ? (
+            {sortedPlayers.length === 0 ? (
               <div className="text-center py-12">
                 <UserPlus className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-foreground mb-2">No players found</h3>
                 <p className="text-muted-foreground">Try adjusting your search or add new players</p>
               </div>
-            ) : (
+            ) : viewMode === "grid" ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredPlayers.map((player) => (
+                {sortedPlayers.map((player) => (
                   <PlayerCard
                     key={player.id}
-                    player={player}
+                    player={player as any}
                     onEdit={handleEditPlayer}
                     onDelete={handleDeletePlayer}
                     onToggleCheckIn={handleToggleCheckIn}
                   />
                 ))}
+              </div>
+            ) : (
+              <div className="rounded-md border overflow-clip">
+                {/* Sticky header (sm+) */}
+                <div
+                  className="hidden sm:grid sticky top-0 z-10 bg-background border-b px-4 py-2 text-xs font-medium text-muted-foreground
+                             grid-cols-[2fr_.9fr_.7fr_1.4fr_2fr_1fr_1.2fr]"
+                >
+                  <button
+                    onClick={() => toggleSort("name")}
+                    className="text-left hover:text-foreground transition-colors"
+                  >
+                    <SortLabel label="Name" active={sortKey === "name"} />
+                  </button>
+                  <button
+                    onClick={() => toggleSort("gender")}
+                    className="text-left hover:text-foreground transition-colors"
+                  >
+                    <SortLabel label="Gender" active={sortKey === "gender"} />
+                  </button>
+                  <button
+                    onClick={() => toggleSort("age")}
+                    className="text-left hover:text-foreground transition-colors"
+                  >
+                    <SortLabel label="Age" active={sortKey === "age"} />
+                  </button>
+                  <div className="truncate">Contact</div>
+                  <div className="truncate">Address</div>
+                  <button
+                    onClick={() => toggleSort("status")}
+                    className="text-left hover:text-foreground transition-colors"
+                  >
+                    <SortLabel label="Status" active={sortKey === "status"} />
+                  </button>
+                  <div className="truncate text-right pr-1">Actions</div>
+                </div>
+
+                <div className="divide-y">
+                  {sortedPlayers.map((player) => (
+                    <PlayerRow
+                      key={player.id}
+                      player={player as any}
+                      onEdit={handleEditPlayer}
+                      onDelete={handleDeletePlayer}
+                      onToggleCheckIn={handleToggleCheckIn}
+                    />
+                  ))}
+                </div>
               </div>
             )}
           </TabsContent>
