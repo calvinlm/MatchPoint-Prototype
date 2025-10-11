@@ -24,32 +24,50 @@ router.get('/', async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const { name, gender, age, contactNumber, address, checkedIn } = req.body
+    console.log("POST /api/players body:", req.body)
 
-    if (!name || !name.trim()) {
+    const { name, gender, age, contactNumber, address, checkedIn } = req.body || {}
+
+    if (!name || !String(name).trim()) {
       return res.status(400).json({ error: "Name is required" })
     }
 
     const data = {
-      name: name.trim(),
-      contactNumber: contactNumber || null,
-      address: address || null,
+      name: String(name).trim(),
+      contactNumber: contactNumber ? String(contactNumber) : null,
+      address: address ? String(address) : null,
       checkedIn: !!checkedIn,
     }
 
-    if (Number.isFinite(Number(age))) data.age = Number(age)
+    // age optional -> integer if sent
+    if (age !== undefined && age !== null && String(age).trim() !== "") {
+      const n = Number(age)
+      if (!Number.isFinite(n) || n < 0) return res.status(422).json({ error: "Invalid age" })
+      data.age = Math.floor(n)
+    }
 
-    // If your Prisma enum is Gender { MALE, FEMALE }, keep uppercase
-    if (typeof gender === "string") {
-      const g = gender.trim().toUpperCase()
-      if (g === "MALE" || g === "FEMALE") data.gender = g
+    // Prisma enum Gender { MALE, FEMALE }  (adjust if your schema differs)
+    if (gender !== undefined && gender !== null && String(gender).trim() !== "") {
+      const g = String(gender).trim().toUpperCase()
+      if (g !== "MALE" && g !== "FEMALE") {
+        return res.status(422).json({ error: "Invalid gender (use MALE or FEMALE)" })
+      }
+      data.gender = g
     }
 
     const created = await prisma.player.create({ data })
     res.status(201).json(created)
   } catch (e) {
+    // Prisma error decoding
+    if (e instanceof Prisma.PrismaClientKnownRequestError) {
+      console.error("Prisma KnownRequestError", e.code, e.meta)
+      return res.status(500).json({ error: "Database error", code: e.code, meta: e.meta })
+    }
+    if (e instanceof Prisma.PrismaClientValidationError) {
+      console.error("Prisma ValidationError", e.message)
+      return res.status(400).json({ error: "Validation error", detail: e.message })
+    }
     console.error("POST /api/players error:", e)
-    // Prisma validation errors will land here too
     res.status(500).json({ error: "Failed to create player" })
   }
 })

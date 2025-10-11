@@ -47,6 +47,7 @@ model Player {
   gender        Gender
   address       String
   contactNumber String
+  checkedIn     Boolean @default(false)
   createdAt     DateTime @default(now())
 
   // Teams (singles = 1 member, doubles = 2 members)

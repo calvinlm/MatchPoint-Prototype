@@ -37,8 +37,8 @@ export function PlayerRow({ player, onEdit, onDelete, onToggleCheckIn }: PlayerR
         </Avatar>
         <div className="min-w-0">
           <div className="font-medium truncate">{player.name || "Unnamed Player"}</div>
-          {/* keep line for potential future subtext, but empty now */}
-          <div className="text-xs text-muted-foreground truncate">&nbsp;</div>
+          {/* keep line for potential future subtext, but empty now 
+          <div className="text-xs text-muted-foreground truncate">&nbsp;</div> */}
         </div>
       </div>
 

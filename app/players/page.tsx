@@ -304,12 +304,12 @@ async function handleAddSubmit(e: React.FormEvent) {
               Export
             </Button>
             <Dialog open={addOpen} onOpenChange={setAddOpen}>
-                <Button asChild>
-              <DialogTrigger>
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Add Player
-              </DialogTrigger>
-                </Button>
+              <Button asChild>
+                <DialogTrigger>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Add Player
+                </DialogTrigger>
+              </Button>
               <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
                   <DialogTitle>Add Player</DialogTitle>
@@ -339,8 +339,8 @@ async function handleAddSubmit(e: React.FormEvent) {
                           <SelectValue placeholder="Select gender" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="male">Male</SelectItem>
-                          <SelectItem value="female">Female</SelectItem>
+                          <SelectItem value="MALE">Male</SelectItem>
+                          <SelectItem value="FEMALE">Female</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
