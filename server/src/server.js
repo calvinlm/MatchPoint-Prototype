@@ -50,7 +50,7 @@ app.use((req, res) => {
 })
 
 // ✅ Server setup
-const port = process.env.PORT || 8080
+const port = process.env.PORT ||  "https://matchpoint-prototype.onrender.com"
 const server = http.createServer(app)
 
 // ✅ Socket.IO setup
