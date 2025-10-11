@@ -68,9 +68,16 @@ export default function PlayersPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | "checked-in" | "not-checked-in">("all")
 
   // Add Player modal state
-const [addOpen, setAddOpen] = useState(false)
-const [isSubmitting, setIsSubmitting] = useState(false)
-const [addError, setAddError] = useState<string | null>(null)
+  const [addOpen, setAddOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [addError, setAddError] = useState<string | null>(null)
+
+  // Edit Player
+  const [editOpen, setEditOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState<Player | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
+
 
 type NewPlayerForm = {
   name: string
@@ -150,6 +157,42 @@ async function handleAddSubmit(e: React.FormEvent) {
     setAddError(err?.message || "Failed to create player.")
   } finally {
     setIsSubmitting(false)
+  }
+}
+
+async function handleEditSubmit(e: React.FormEvent) {
+  e.preventDefault()
+  if (!editTarget) return
+  setIsEditing(true)
+  setEditError(null)
+  try {
+    const payload = {
+      name: editTarget.name.trim(),
+      gender: (editTarget.gender ?? "").toUpperCase(),
+      age: Number(editTarget.age),
+      contactNumber: editTarget.contactNumber.trim(),
+      address: editTarget.address.trim(),
+      checkedIn: !!editTarget.checkedIn,
+    }
+
+    const res = await fetch(`${API_BASE}/api/players/${editTarget.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "")
+      throw new Error(text || "Failed to update player.")
+    }
+
+    const updated = await res.json()
+    setPlayers((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
+    setEditOpen(false)
+  } catch (err: any) {
+    setEditError(err.message)
+  } finally {
+    setIsEditing(false)
   }
 }
 
@@ -260,9 +303,47 @@ async function handleAddSubmit(e: React.FormEvent) {
     </span>
   )
 
-  const handleEditPlayer = (id: string) => console.log(`[v1] Edit player ${id}`)
-  const handleDeletePlayer = (id: string) => console.log(`[v1] Delete player ${id}`)
-  const handleToggleCheckIn = (id: string) => console.log(`[v1] Toggle check-in ${id}`)
+  const handleEditPlayer = (id: string | number) => {
+    const found = players.find((p) => String(p.id) === String(id))
+    if (found) {
+      setEditTarget({ ...(found as any) })
+      setEditOpen(true)
+    }
+  }
+
+  async function handleToggleCheckIn(id: string | number) {
+  const p = players.find((x) => String(x.id) === String(id)) as any
+  if (!p) return
+  const next = !Boolean(p.checkedIn)
+  try {
+    const res = await fetch(`${API_BASE}/api/players/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ checkedIn: next }),
+    })
+    if (!res.ok) {
+      const text = await res.text().catch(() => "")
+      throw new Error(text || "Failed to update check-in status.")
+    }
+    const updated = await res.json()
+    setPlayers((prev) => prev.map((pl) => (pl.id === updated.id ? updated : pl)))
+  } catch (e) {
+    console.error(e)
+    alert("Could not update check-in status.")
+  }
+}
+
+async function handleDeletePlayer(id: string | number) {
+  if (!confirm("Are you sure you want to delete this player?")) return
+  try {
+    const res = await fetch(`${API_BASE}/api/players/${id}`, { method: "DELETE" })
+    if (!res.ok) throw new Error("Failed to delete player.")
+    setPlayers((prev) => prev.filter((p) => p.id !== id))
+  } catch (err: any) {
+    alert(err.message)
+  }
+}
+
   const handleEditTeam = (id: string) => console.log(`[v1] Edit team ${id}`)
   const handleDeleteTeam = (id: string) => console.log(`[v1] Delete team ${id}`)
   const handleAddPlayerToTeam = (id: string) => console.log(`[v1] Add player to team ${id}`)
@@ -404,6 +485,80 @@ async function handleAddSubmit(e: React.FormEvent) {
                     </Button>
                   </DialogFooter>
                 </form>
+              </DialogContent>
+            </Dialog>
+            {/* Edit Player Dialog */}
+            <Dialog open={editOpen} onOpenChange={setEditOpen}>
+              <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Edit Player</DialogTitle>
+                  <DialogDescription>Modify player information below.</DialogDescription>
+                </DialogHeader>
+
+                {editTarget && (
+                  <form onSubmit={handleEditSubmit} className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Name</Label>
+                        <Input
+                          value={editTarget.name}
+                          onChange={(e) => setEditTarget((s) => s ? { ...s, name: e.target.value } : s)}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Gender</Label>
+                        <Select
+                          value={editTarget?.gender ?? ""}
+                          onValueChange={(v) =>
+                            setEditTarget((s) => (s ? { ...s, gender: v as "MALE" | "FEMALE" } : s))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select gender" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="MALE">Male</SelectItem>
+                            <SelectItem value="FEMALE">Female</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Age</Label>
+                        <Input
+                          type="number"
+                          value={editTarget.age ?? ""}
+                          onChange={(e) => setEditTarget((s) => s ? { ...s, age: Number(e.target.value) } : s)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Contact Number</Label>
+                        <Input
+                          value={editTarget.contactNumber}
+                          onChange={(e) => setEditTarget((s) => s ? { ...s, contactNumber: e.target.value } : s)}
+                        />
+                      </div>
+                      <div className="space-y-2 sm:col-span-2">
+                        <Label>Address</Label>
+                        <Input
+                          value={editTarget.address}
+                          onChange={(e) => setEditTarget((s) => s ? { ...s, address: e.target.value } : s)}
+                        />
+                      </div>
+                    </div>
+
+                    {editError && <p className="text-sm text-destructive">{editError}</p>}
+
+                    <DialogFooter className="gap-2">
+                      <Button type="button" variant="ghost" onClick={() => setEditOpen(false)} disabled={isEditing}>
+                        Cancel
+                      </Button>
+                      <Button type="submit" disabled={isEditing}>
+                        {isEditing ? "Saving..." : "Save Changes"}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                )}
               </DialogContent>
             </Dialog>
           </div>

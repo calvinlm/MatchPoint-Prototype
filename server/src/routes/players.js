@@ -2,73 +2,77 @@ import { Router } from 'express'
 import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 const router = Router()
+// sanity pings
+router.get("/_ping", (_req, res) => res.json({ ok: true }))
 
-// GET all players
-router.get('/', async (req, res) => {
+// GET /api/players
+router.get("/", async (_req, res) => {
   try {
-    const players = await prisma.player.findMany({
-      include: {
-        teamMembers: {
-          include: {
-            team: true
-          }
-        }
-      }
-    })
+    const players = await prisma.player.findMany({ orderBy: { name: "asc" } })
     res.json(players)
-  } catch (err) {
-    console.error('Error fetching players:', err)
-    res.status(500).json({ error: 'Failed to fetch players' })
+  } catch (e) {
+    console.error("GET /api/players", e)
+    res.status(500).json({ error: "Failed to load players" })
   }
 })
 
+// POST /api/players
 router.post("/", async (req, res) => {
   try {
-    console.log("POST /api/players body:", req.body)
-
-    const { name, gender, age, contactNumber, address, checkedIn } = req.body || {}
-
-    if (!name || !String(name).trim()) {
-      return res.status(400).json({ error: "Name is required" })
+    const { name, age, gender, address, contactNumber, checkedIn } = req.body || {}
+    if (!name || !age || !gender || !address || !contactNumber) {
+      return res.status(400).json({ error: "Missing required fields" })
     }
-
-    const data = {
-      name: String(name).trim(),
-      contactNumber: contactNumber ? String(contactNumber) : null,
-      address: address ? String(address) : null,
-      checkedIn: !!checkedIn,
-    }
-
-    // age optional -> integer if sent
-    if (age !== undefined && age !== null && String(age).trim() !== "") {
-      const n = Number(age)
-      if (!Number.isFinite(n) || n < 0) return res.status(422).json({ error: "Invalid age" })
-      data.age = Math.floor(n)
-    }
-
-    // Prisma enum Gender { MALE, FEMALE }  (adjust if your schema differs)
-    if (gender !== undefined && gender !== null && String(gender).trim() !== "") {
-      const g = String(gender).trim().toUpperCase()
-      if (g !== "MALE" && g !== "FEMALE") {
-        return res.status(422).json({ error: "Invalid gender (use MALE or FEMALE)" })
-      }
-      data.gender = g
-    }
-
-    const created = await prisma.player.create({ data })
+    const created = await prisma.player.create({
+      data: {
+        name: String(name).trim(),
+        age: Number(age),
+        gender: String(gender).toUpperCase(),  // MALE | FEMALE
+        address: String(address).trim(),
+        contactNumber: String(contactNumber).trim(),
+        checkedIn: !!checkedIn,
+      },
+    })
     res.status(201).json(created)
   } catch (e) {
-    // Prisma error decoding
-    if (e instanceof Prisma.PrismaClientKnownRequestError) {
-      console.error("Prisma KnownRequestError", e.code, e.meta)
-      return res.status(500).json({ error: "Database error", code: e.code, meta: e.meta })
-    }
-    if (e instanceof Prisma.PrismaClientValidationError) {
-      console.error("Prisma ValidationError", e.message)
-      return res.status(400).json({ error: "Validation error", detail: e.message })
-    }
-    console.error("POST /api/players error:", e)
+    console.error("POST /api/players", e)
     res.status(500).json({ error: "Failed to create player" })
+  }
+})
+
+// PUT /api/players/:id
+router.put("/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id)
+    if (!Number.isFinite(id)) return res.status(400).json({ error: "Invalid player ID" })
+
+    const { name, age, gender, address, contactNumber, checkedIn } = req.body || {}
+    const data = {}
+    if (name != null) data.name = String(name).trim()
+    if (age != null && Number.isFinite(Number(age))) data.age = Number(age)
+    if (gender != null) data.gender = String(gender).toUpperCase()
+    if (address != null) data.address = String(address).trim()
+    if (contactNumber != null) data.contactNumber = String(contactNumber).trim()
+    if (typeof checkedIn === "boolean") data.checkedIn = checkedIn
+
+    const updated = await prisma.player.update({ where: { id }, data })
+    res.json(updated)
+  } catch (e) {
+    console.error("PUT /api/players/:id", e)
+    res.status(500).json({ error: "Failed to update player" })
+  }
+})
+
+// DELETE /api/players/:id
+router.delete("/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id)
+    if (!Number.isFinite(id)) return res.status(400).json({ error: "Invalid player ID" })
+    await prisma.player.delete({ where: { id } })
+    res.status(204).send()
+  } catch (e) {
+    console.error("DELETE /api/players/:id", e)
+    res.status(500).json({ error: "Failed to delete player" })
   }
 })
 
