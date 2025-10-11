@@ -78,6 +78,9 @@ export default function PlayersPage() {
   const [isEditing, setIsEditing] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
 
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [confirmTarget, setConfirmTarget] = useState<Player | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
 type NewPlayerForm = {
   name: string
@@ -333,16 +336,30 @@ async function handleEditSubmit(e: React.FormEvent) {
   }
 }
 
-async function handleDeletePlayer(id: string | number) {
-  if (!confirm("Are you sure you want to delete this player?")) return
+// When user clicks "Delete" in row/card
+const handleDeletePlayer = (id: string | number) => {
+  const found = players.find((p) => String(p.id) === String(id)) || null
+  setConfirmTarget(found || (null as any))
+  setConfirmOpen(true)
+}
+
+async function confirmDelete() {
+  if (!confirmTarget) return
+  setIsDeleting(true)
   try {
+    const id = confirmTarget.id as any
     const res = await fetch(`${API_BASE}/api/players/${id}`, { method: "DELETE" })
     if (!res.ok) throw new Error("Failed to delete player.")
-    setPlayers((prev) => prev.filter((p) => p.id !== id))
+    setPlayers((prev) => prev.filter((p) => String(p.id) !== String(id)))
+    setConfirmOpen(false)
+    setConfirmTarget(null)
   } catch (err: any) {
-    alert(err.message)
+    alert(err.message || "Delete failed.")
+  } finally {
+    setIsDeleting(false)
   }
 }
+
 
   const handleEditTeam = (id: string) => console.log(`[v1] Edit team ${id}`)
   const handleDeleteTeam = (id: string) => console.log(`[v1] Delete team ${id}`)
@@ -559,6 +576,53 @@ async function handleDeletePlayer(id: string | number) {
                     </DialogFooter>
                   </form>
                 )}
+              </DialogContent>
+            </Dialog>
+            {/* 🗑️ Delete Confirmation */}
+            <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Delete player?</DialogTitle>
+                  <DialogDescription>
+                    This action can’t be undone. The player{" "}
+                    <span className="font-medium text-foreground">
+                      {confirmTarget?.name || "Unnamed"}
+                    </span>{" "}
+                    will be permanently removed.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="mt-2 rounded-md border p-3 text-sm">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                    <span className="text-muted-foreground">Gender</span>
+                    <span className="capitalize">{String((confirmTarget as any)?.gender ?? "—").toLowerCase()}</span>
+                    <span className="text-muted-foreground">Age</span>
+                    <span>{(confirmTarget as any)?.age ?? "—"}</span>
+                    <span className="text-muted-foreground">Contact</span>
+                    <span>{(confirmTarget as any)?.contactNumber || "—"}</span>
+                    <span className="text-muted-foreground">Address</span>
+                    <span className="truncate">{(confirmTarget as any)?.address || "—"}</span>
+                  </div>
+                </div>
+
+                <DialogFooter className="gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setConfirmOpen(false)}
+                    disabled={isDeleting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={confirmDelete}
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? "Deleting..." : "Delete"}
+                  </Button>
+                </DialogFooter>
               </DialogContent>
             </Dialog>
           </div>

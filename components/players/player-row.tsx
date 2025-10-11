@@ -8,9 +8,9 @@ import type { Player } from "@/lib/types"
 
 interface PlayerRowProps {
   player: (Player & { checkedIn?: boolean })
-  onEdit: (playerId: string) => void
-  onDelete: (playerId: string) => void
-  onToggleCheckIn: (playerId: string) => void
+  onEdit: (playerId: string | number) => void
+  onDelete: (playerId: string | number) => void
+  onToggleCheckIn: (playerId: string | number) => void
 }
 
 export function PlayerRow({ player, onEdit, onDelete, onToggleCheckIn }: PlayerRowProps) {
@@ -96,15 +96,15 @@ export function PlayerRow({ player, onEdit, onDelete, onToggleCheckIn }: PlayerR
         <Button
           size="sm"
           variant={player.checkedIn ? "outline" : "default"}
-          onClick={() => onToggleCheckIn(String(player.id))}
+          onClick={() => onToggleCheckIn(player.id)}
         >
           {player.checkedIn ? "Check Out" : "Check In"}
         </Button>
-        <Button size="sm" variant="outline" onClick={() => onEdit(String(player.id))}>
+        <Button size="sm" variant="outline" onClick={() => onEdit(player.id)}>
           <Edit className="h-4 w-4 mr-1" />
           Edit
         </Button>
-        <Button size="sm" variant="outline" onClick={() => onDelete(String(player.id))}>
+        <Button size="sm" variant="outline" onClick={() => onDelete(player.id)}>
           <Trash2 className="h-4 w-4 mr-1" />
           Delete
         </Button>
