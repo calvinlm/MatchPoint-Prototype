@@ -39,7 +39,7 @@ const mockTeams: (Team & {
   },
 ]
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "https://matchpoint-prototype.onrender.com"
 
 export default function PlayersPage() {
   const userRoles: UserRole[] = ["director"]
