@@ -21,13 +21,17 @@ router.get("/", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const { categoryId } = req.body;
+    const { categoryId, playerIds = [], eventName } = req.body;
     if (!categoryId) return res.status(400).json({ error: "categoryId required" });
 
-    const team = await prisma.team.create({
-      data: { categoryId: Number(categoryId) },
-      include: { category: true },
+    const team = await prisma.$transaction(async (tx) => {
+      const t = await tx.team.create({ data: { categoryId: Number(categoryId) }, include: { category: true } });
+      if (playerIds.length) {
+        await tx.teamMember.createMany({ data: playerIds.map((pid, i) => ({ teamId: t.id, playerId: Number(pid), slot: i + 1 })) });
+      }
+      return t;
     });
+
     res.status(201).json(team);
   } catch (err) {
     console.error("POST /teams error:", err);
