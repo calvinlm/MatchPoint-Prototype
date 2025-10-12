@@ -30,7 +30,7 @@ interface NavigationItem {
 const navigationItems: NavigationItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, permission: "view_dashboard" },
   { label: "Player Details", href: "/players", icon: UserIcon, permission: "manage_events" },
-  { label: "Manage Teams", href: "/teams", icon: Users, permission: "manage_events" },
+  { label: "Manage Teams", href: "/manage-teams", icon: Users, permission: "manage_events" },
   { label: "Bracket Setup", href: "/brackets", icon: GitBranch, permission: "manage_brackets" },
   { label: "Match Queue", href: "/queue", icon: Clock3, permission: "manage_queue" },
   { label: "Score Sheet", href: "/score-sheets", icon: FileText, permission: "manage_events" },

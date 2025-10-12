@@ -241,7 +241,7 @@ async function handleEditSubmit(e: React.FormEvent) {
     return true
   }
 
-  // Filters for players (name + status + NEW ageCat + genderFilter)
+  // Filters for players
   const filteredPlayers = useMemo(() => {
     return players
       .filter((p) => (p.name || "").toLowerCase().includes(searchTerm.toLowerCase()))

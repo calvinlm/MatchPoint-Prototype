@@ -39,6 +39,7 @@ import uploadRouter from './routes/upload.js'
 import authRoutes from './routes/auth.js'
 import matchRoutes from './routes/match.js'
 import playersRoutes from './routes/players.js'
+import teamsRouter from "./routes/teams.js";
 
 const app = express()
 
@@ -63,6 +64,7 @@ app.use('/api/upload', uploadRouter)
 app.use('/auth', authRoutes)
 app.use('/matches', matchRoutes)
 app.use('/api/players', playersRoutes)
+app.use("/api/teams", teamsRouter);
 
 // 404 handler (keep last)
 app.use((req, res) => {
