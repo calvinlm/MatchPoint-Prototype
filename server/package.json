@@ -9,11 +9,11 @@
     "build": "tsc",
     "prisma": "prisma",
     "postinstall": "prisma generate",
-    "start": "node src/server.js"
-
+    "start": "node src/server.js",
+    "db:check": "node scripts/check-db.js"
   },
   "dependencies": {
-    "@prisma/client": "^6.16.2",
+    "@prisma/client": "^6.17.1",
     "@supabase/supabase-js": "^2.45.0",
     "bcryptjs": "^3.0.2",
     "cloudinary": "^1.41.3",
@@ -26,12 +26,14 @@
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
     "pg": "^8.16.3",
-    "prisma": "^6.16.2",
     "socket.io": "^4.8.1",
     "winston": "^3.17.0"
   },
   "description": "A minimal, production-ready backend scaffold to pair with your React (Vercel) frontend.",
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "prisma": "^6.17.1"
+  }
 }
