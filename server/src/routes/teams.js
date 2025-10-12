@@ -302,8 +302,8 @@ r.delete("/:id", async (req, res) => {
 // TEMP: Diagnostics — what does the running Prisma Client think Team looks like?
 r.get("/__diag/prisma-team", (req, res) => {
   try {
-    const { Prisma } = require("@prisma/client")
-    const model = Prisma.dmmf.datamodel.models.find((m) => m.name === "Team")
+    const { PrismaClient } = require("@prisma/client")
+    const model = PrismaClient.dmmf.datamodel.models.find((m) => m.name === "Team")
     res.json(model)
   } catch (e) {
     res.status(500).json({ error: String(e) })
