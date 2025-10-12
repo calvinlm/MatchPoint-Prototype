@@ -42,11 +42,11 @@ r.get("/", async (req, res) => {
       level ? { level: level } : {},
       q
         ? {
-            OR: [
-              { code: { contains: q, mode: "insensitive" } },
-              { members: { some: { player: { name: { contains: q, mode: "insensitive" } } } } },
-            ],
-          }
+          OR: [
+            { code: { contains: q, mode: "insensitive" } },
+            { members: { some: { player: { name: { contains: q, mode: "insensitive" } } } } },
+          ],
+        }
         : {},
     ],
   }
@@ -54,7 +54,13 @@ r.get("/", async (req, res) => {
   const teams = await prisma.team.findMany({
     where,
     orderBy: { createdAt: "asc" },
-    include: { members: { include: { player: true }, orderBy: { position: "asc" } } },
+    include: {
+      members: {
+        include: { player: true },
+        // If some old rows have slot = null, sort them first:
+        orderBy: { slot: { sort: "asc", nulls: "first" } }
+      }
+    },
   })
 
   const toClient = teams.map((t) => ({
@@ -64,12 +70,12 @@ r.get("/", async (req, res) => {
       t.division === "MS"
         ? "Mens Singles"
         : t.division === "MD"
-        ? "Mens Doubles"
-        : t.division === "WS"
-        ? "Womens Singles"
-        : t.division === "WD"
-        ? "Womens Doubles"
-        : "Mixed Doubles",
+          ? "Mens Doubles"
+          : t.division === "WS"
+            ? "Womens Singles"
+            : t.division === "WD"
+              ? "Womens Doubles"
+              : "Mixed Doubles",
     level: t.level === "NOV" ? "Novice" : t.level === "INT" ? "Intermediate" : "Advanced",
     players: t.members.map((m) => m.player.name),
     timestamp: new Date(t.createdAt).getTime(),
@@ -114,12 +120,12 @@ r.post("/", async (req, res) => {
           level: lvl,
           members: {
             create: playerIds.slice(0, 2).map((pid, idx) => ({
-              position: idx + 1,
+              slot: idx + 1,
               player: { connect: { id: Number(pid) } },
             })),
           },
         },
-        include: { members: { include: { player: true }, orderBy: { position: "asc" } } },
+        include: { members: { include: { player: true }, orderBy: { slot: { sort: "asc", nulls: "first" } } } },
       })
 
       return created
@@ -183,15 +189,15 @@ r.put("/:id", async (req, res) => {
       level: nextLvl,
       members: playerIds
         ? {
-            deleteMany: {}, // reset
+            deleteMany: {},
             create: playerIds.slice(0, 2).map((pid, idx) => ({
-              position: idx + 1,
+              slot: idx + 1,
               player: { connect: { id: Number(pid) } },
             })),
           }
         : undefined,
     },
-    include: { members: { include: { player: true }, orderBy: { position: "asc" } } },
+    include: { members: { include: { player: true }, orderBy: { slot: { sort: "asc", nulls: "first" } } } },
   })
 
   res.json({
@@ -202,12 +208,12 @@ r.put("/:id", async (req, res) => {
       (team.division === "MS"
         ? "Mens Singles"
         : team.division === "MD"
-        ? "Mens Doubles"
-        : team.division === "WS"
-        ? "Womens Singles"
-        : team.division === "WD"
-        ? "Womens Doubles"
-        : "Mixed Doubles"),
+          ? "Mens Doubles"
+          : team.division === "WS"
+            ? "Womens Singles"
+            : team.division === "WD"
+              ? "Womens Doubles"
+              : "Mixed Doubles"),
     level: level ?? (team.level === "NOV" ? "Novice" : team.level === "INT" ? "Intermediate" : "Advanced"),
     players: updated.members.map((m) => m.player.name),
     timestamp: new Date(updated.createdAt).getTime(),
