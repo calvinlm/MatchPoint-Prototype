@@ -125,7 +125,12 @@ r.post("/", async (req, res) => {
             })),
           },
         },
-        include: { members: { include: { player: true }, orderBy: { slot: { sort: "asc", nulls: "first" } } } },
+        include: { 
+          members: { 
+            include: { player: true }, 
+            orderBy: { slot: { sort: "asc", nulls: "first" } }
+           } 
+          },
       })
 
       return created
@@ -189,12 +194,12 @@ r.put("/:id", async (req, res) => {
       level: nextLvl,
       members: playerIds
         ? {
-            deleteMany: {},
-            create: playerIds.slice(0, 2).map((pid, idx) => ({
-              slot: idx + 1,
-              player: { connect: { id: Number(pid) } },
-            })),
-          }
+          deleteMany: {},
+          create: playerIds.slice(0, 2).map((pid, idx) => ({
+            slot: idx + 1,
+            player: { connect: { id: Number(pid) } },
+          })),
+        }
         : undefined,
     },
     include: { members: { include: { player: true }, orderBy: { slot: { sort: "asc", nulls: "first" } } } },
