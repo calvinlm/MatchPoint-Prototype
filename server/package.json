@@ -9,8 +9,7 @@
     "build": "tsc",
     "prisma": "prisma",
     "postinstall": "prisma generate",
-    "start": "node src/server.js",
-    "db:check": "node scripts/check-db.js"
+    "start": "node src/server.js"
   },
   "dependencies": {
     "@prisma/client": "^6.17.1",
