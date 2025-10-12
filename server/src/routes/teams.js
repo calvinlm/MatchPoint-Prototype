@@ -299,12 +299,26 @@ r.delete("/:id", async (req, res) => {
   }
 })
 
-// TEMP: Diagnostics — what does the running Prisma Client think Team looks like?
+// Diagnostics: Prisma + model shapes
 r.get("/__diag/prisma-team", (req, res) => {
   try {
-    const { PrismaClient } = require("@prisma/client")
-    const model = PrismaClient.dmmf.datamodel.models.find((m) => m.name === "Team")
-    res.json(model)
+    const team = PrismaClient.dmmf?.datamodel?.models?.find((m) => m.name === "Team")
+    res.json({
+      prismaVersion: PrismaClient.prismaVersion?.client,
+      teamModel: team || null,
+    })
+  } catch (e) {
+    res.status(500).json({ error: String(e) })
+  }
+})
+
+r.get("/__diag/prisma-models", (req, res) => {
+  try {
+    const models = PrismaClient.dmmf?.datamodel?.models?.map((m) => m.name) || []
+    res.json({
+      prismaVersion: PrismaClient.prismaVersion?.client,
+      models,
+    })
   } catch (e) {
     res.status(500).json({ error: String(e) })
   }
