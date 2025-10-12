@@ -7,25 +7,23 @@ generator client {
   provider = "prisma-client-js"
 }
 
-/**
- * ===== ENUMS =====
- */
+/* ===== ENUMS ===== */
 enum Gender {
   MALE
   FEMALE
 }
 
 enum AgeBracket {
-  A18 // 18+
-  A35 // 35+
-  A55 // 55+
-  JUNIOR // Junior
+  JUNIOR // <=17
+  A18    // 18+
+  A35    // 35+
+  A55    // 55+
 }
 
 enum Division {
-  MS // Men's Single
+  MS // Men's Singles
   MD // Men's Doubles
-  WS // Women's Single
+  WS // Women's Singles
   WD // Women's Doubles
   XD // Mixed Doubles
 }
@@ -34,71 +32,48 @@ enum Level {
   NOV // Novice
   INT // Intermediate
   ADV // Advanced
-  OPN // Open
+  OPN // Open (keep if you’ll use it; otherwise safe to drop later)
 }
 
-/**
- * ===== CORE TABLES =====
- */
+/* ===== CORE TABLES ===== */
 model Player {
-  id            Int      @id @default(autoincrement())
+  id            Int       @id @default(autoincrement())
   name          String
   age           Int
   gender        Gender
   address       String
   contactNumber String
-  checkedIn     Boolean @default(false)
-  createdAt     DateTime @default(now())
+  checkedIn     Boolean   @default(false)
+  createdAt     DateTime  @default(now())
 
-  // Teams (singles = 1 member, doubles = 2 members)
-  teamMembers TeamMember[]
+  teamMembers   TeamMember[]
 }
 
-model Category {
-  id         Int        @id @default(autoincrement())
-  ageBracket AgeBracket
+/* Teams store their own bracket/division/level; code is the human-facing ID (e.g., 18MDInt_001) */
+model Team {
+  id         Int         @id @default(autoincrement())
+  code       String      @unique                   // e.g., 18MDInt_001
+  age        AgeBracket
   division   Division
   level      Level
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
 
-  teams Team[]
+  members    TeamMember[]
 
-  // keep one row per unique combo
-  @@unique([ageBracket, division, level])
+  @@index([age, division, level])
 }
 
-/**
- * Team: code = AGE/DIVISION/LEVEL/SEQ -> e.g., 18MD_INT_001
- * We store:
- * - ordinal: per-category running number, filled by a DB trigger
- * - teamCode: formatted code, built in the same trigger
- */
-model Team {
-  id         Int      @id @default(autoincrement())
-  categoryId Int
-  ordinal    Int      @default(0) // set by trigger
-  teamCode   String   @unique // set by trigger (e.g., 18MD_INT_001)
-  createdAt  DateTime @default(now())
-
-  category Category     @relation(fields: [categoryId], references: [id])
-  members  TeamMember[]
-
-  @@index([categoryId, ordinal])
-}
-
-/**
- * TeamMember: join players to teams (1 for singles, 2 for doubles)
- * Optional "slot" if you want to keep order (1 or 2).
- */
+/* Join table: 1 member for singles, 2 for doubles; keep slot (1/2) to preserve order */
 model TeamMember {
-  id       Int  @id @default(autoincrement())
   teamId   Int
   playerId Int
-  slot     Int?
+  slot     Int?         // 1 or 2
 
-  team   Team   @relation(fields: [teamId], references: [id])
-  player Player @relation(fields: [playerId], references: [id])
+  team     Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
-  @@unique([teamId, playerId])
-  @@index([teamId])
+  @@id([teamId, playerId])
+  @@unique([teamId, slot])
   @@index([playerId])
 }
