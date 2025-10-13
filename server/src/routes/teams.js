@@ -366,4 +366,35 @@ r.get("/__diag/prisma-team", (req, res) => {
   }
 })
 
+// --- Deep diagnostics: what DB am I connected to, and what tables exist? ---
+r.get("/__diag/db-tables", async (req, res) => {
+  try {
+    const rows = await prisma.$queryRaw`
+      SELECT table_schema, table_name
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+      ORDER BY table_name;
+    `
+    // mask DB URL but show host/db to confirm we're on the right database
+    const mask = (u) => (u ? u.replace(/:\/\/.*@/, "://***:***@") : null)
+    res.json({
+      prismaVersion: Prisma.prismaVersion?.client,
+      databaseUrl: mask(process.env.DATABASE_URL || null),
+      tables: rows,
+    })
+  } catch (e) {
+    res.status(500).json({ error: String(e) })
+  }
+})
+
+r.get("/__diag/db-info", async (req, res) => {
+  try {
+    const [db] = await prisma.$queryRaw`SELECT current_database() AS db, current_user AS usr`
+    const [ver] = await prisma.$queryRaw`SELECT version()`
+    res.json({ dbInfo: db, version: ver?.version ?? null })
+  } catch (e) {
+    res.status(500).json({ error: String(e) })
+  }
+})
+
 export default r
