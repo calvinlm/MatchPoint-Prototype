@@ -1,11 +1,11 @@
 // server/routes/teams.js
 import { Router } from "express"
-import { PrismaClient } from "@prisma/client"
+import { Prisma, PrismaClient } from "@prisma/client"
 
 const prisma = new PrismaClient()
 const r = Router()
 
-/* ===== Mappers ===== */
+/* ================= MAPPERS ================= */
 function uiToAgeBracket(ageGroup) {
   if (ageGroup === "Junior (17 below)") return "JUNIOR"
   if (ageGroup === "18+") return "A18"
@@ -25,12 +25,6 @@ function uiToLevel(level) {
   if (level === "Open") return "OPN"
   return "ADV"
 }
-function codePrefix(age, division, level) {
-  const ageCode = age === "JUNIOR" ? "Jr" : age === "A18" ? "18" : age === "A35" ? "35" : "55"
-  const divCode = { MS: "MS", MD: "MD", WS: "WS", WD: "WD", XD: "XD" }[division]
-  const lvlCode = { NOV: "Nov", INT: "Int", ADV: "Adv", OPN: "Opn" }[level]
-  return `${ageCode}${divCode}${lvlCode}_` // e.g., 18MDInt_
-}
 function enumToAgeLabel(a) {
   return a === "JUNIOR" ? "Junior (17 below)" : a === "A18" ? "18+" : a === "A35" ? "35+" : "55+"
 }
@@ -49,7 +43,15 @@ function enumToLevelLabel(l) {
   return l === "NOV" ? "Novice" : l === "INT" ? "Intermediate" : l === "OPN" ? "Open" : "Advanced"
 }
 
-/* ===== Helpers ===== */
+// e.g. 18MDInt_
+function codePrefix(age, division, level) {
+  const ageCode = age === "JUNIOR" ? "Jr" : age === "A18" ? "18" : age === "A35" ? "35" : "55"
+  const divCode = { MS: "MS", MD: "MD", WS: "WS", WD: "WD", XD: "XD" }[division]
+  const lvlCode = { NOV: "Nov", INT: "Int", ADV: "Adv", OPN: "Opn" }[level]
+  return `${ageCode}${divCode}${lvlCode}_`
+}
+
+/* ================= HELPERS ================= */
 const slotOrder = { slot: { sort: "asc", nulls: "first" } }
 
 function parsePlayerIds(playerIds) {
@@ -58,7 +60,7 @@ function parsePlayerIds(playerIds) {
     .filter((n) => Number.isFinite(n))
 }
 
-/** Resolve a team by numeric DB id or by code string. Returns null if not found. */
+/** Resolve a team by numeric DB id or by code string. */
 async function findTeamByAnyId(idOrCode) {
   const asNum = Number(idOrCode)
   const where =
@@ -68,21 +70,40 @@ async function findTeamByAnyId(idOrCode) {
   return prisma.team.findFirst({ where, include: { members: true } })
 }
 
-/** Validate Singles/Doubles/Mixed constraints based on division. Throws 400 on violation. */
+/** Validate Singles/Doubles/Mixed constraints + player existence. Throws Error with .status when invalid. */
 async function validateDivisionAndPlayers(division, playerIds) {
+  // dedupe
+  const uniq = [...new Set(playerIds)]
+  if (uniq.length !== playerIds.length) {
+    const err = new Error("Duplicate playerIds are not allowed")
+    err.status = 400
+    throw err
+  }
+
+  // load players to ensure they exist (and for Mixed gender check)
+  const players = await prisma.player.findMany({
+    where: { id: { in: uniq } },
+    select: { id: true, gender: true },
+  })
+  if (players.length !== uniq.length) {
+    const err = new Error("One or more playerIds do not exist")
+    err.status = 400
+    throw err
+  }
+
+  // size rules
   if (division === "MS" || division === "WS") {
-    if (playerIds.length !== 1) {
+    if (uniq.length !== 1) {
       const label = division === "MS" ? "Men's Singles" : "Women's Singles"
-      const msg = `${label} requires exactly 1 player`
-      const err = new Error(msg)
+      const err = new Error(`${label} requires exactly 1 player`)
       err.status = 400
       throw err
     }
     return
   }
 
-  // Doubles or Mixed
-  if (playerIds.length !== 2) {
+  // doubles or mixed
+  if (uniq.length !== 2) {
     const label =
       division === "MD" ? "Men's Doubles" : division === "WD" ? "Women's Doubles" : "Mixed Doubles"
     const err = new Error(`${label} requires exactly 2 players`)
@@ -90,17 +111,8 @@ async function validateDivisionAndPlayers(division, playerIds) {
     throw err
   }
 
+  // mixed: require 1 male + 1 female
   if (division === "XD") {
-    // Mixed: one male + one female
-    const players = await prisma.player.findMany({
-      where: { id: { in: playerIds } },
-      select: { id: true, gender: true },
-    })
-    if (players.length !== 2) {
-      const err = new Error("Invalid players")
-      err.status = 400
-      throw err
-    }
     const genders = players.map((p) => String(p.gender || "")).sort().join("-")
     if (genders !== "FEMALE-MALE") {
       const err = new Error("Mixed Doubles requires one male and one female")
@@ -110,7 +122,38 @@ async function validateDivisionAndPlayers(division, playerIds) {
   }
 }
 
-/* ===== Routes ===== */
+/** Build the next sequenced team code under a prefix inside a transaction. */
+async function createTeamWithMembers(tx, { prefix, age, division, lvl, playerIds }) {
+  const existing = await tx.team.findMany({
+    where: { code: { startsWith: prefix } },
+    select: { code: true },
+  })
+  const max = existing
+    .map((t) => parseInt(t.code.slice(prefix.length), 10))
+    .filter((n) => Number.isFinite(n))
+    .reduce((a, b) => Math.max(a, b), 0)
+
+  const next = String(max + 1).padStart(3, "0")
+  const code = `${prefix}${next}`
+
+  return tx.team.create({
+    data: {
+      code,
+      age,
+      division,
+      level: lvl,
+      members: {
+        create: playerIds.slice(0, 2).map((pid, idx) => ({
+          slot: idx + 1,
+          player: { connect: { id: pid } },
+        })),
+      },
+    },
+    include: { members: { include: { player: true }, orderBy: slotOrder } },
+  })
+}
+
+/* ================= ROUTES ================= */
 
 // GET /api/teams
 r.get("/", async (req, res) => {
@@ -134,9 +177,7 @@ r.get("/", async (req, res) => {
   const teams = await prisma.team.findMany({
     where,
     orderBy: { createdAt: "asc" },
-    include: {
-      members: { include: { player: true }, orderBy: slotOrder },
-    },
+    include: { members: { include: { player: true }, orderBy: slotOrder } },
   })
 
   const out = teams.map((t) => ({
@@ -153,66 +194,69 @@ r.get("/", async (req, res) => {
 
 // POST /api/teams  { ageGroup, category, level, playerIds: number[] }
 r.post("/", async (req, res) => {
+  const { ageGroup, category, level, playerIds } = req.body || {}
+  const ids = parsePlayerIds(playerIds)
+  if (ids.length === 0) return res.status(400).send("playerIds required")
+
+  const age = uiToAgeBracket(ageGroup)
+  const division = uiToDivision(category)
+  const lvl = uiToLevel(level)
+
   try {
-    const { ageGroup, category, level, playerIds } = req.body || {}
-    const ids = parsePlayerIds(playerIds)
-    if (ids.length === 0) return res.status(400).send("playerIds required")
-
-    const age = uiToAgeBracket(ageGroup)
-    const division = uiToDivision(category)
-    const lvl = uiToLevel(level)
-
     await validateDivisionAndPlayers(division, ids)
 
     const prefix = codePrefix(age, division, lvl)
 
-    const result = await prisma.$transaction(
-      async (tx) => {
-        // largest sequence for this prefix
-        const existing = await tx.team.findMany({
-          where: { code: { startsWith: prefix } },
-          select: { code: true },
-        })
-        const max = existing
-          .map((t) => parseInt(t.code.slice(prefix.length), 10))
-          .filter((n) => Number.isFinite(n))
-          .reduce((a, b) => Math.max(a, b), 0)
-        const next = String(max + 1).padStart(3, "0")
-        const code = `${prefix}${next}`
+    // Retry on rare code collision (P2002 unique on Team.code)
+    const MAX_RETRIES = 3
+    let attempt = 0
+    let created = null
+    let lastErr = null
 
-        const created = await tx.team.create({
-          data: {
-            code,
-            age,
-            division,
-            level: lvl,
-            members: {
-              create: ids.slice(0, 2).map((pid, idx) => ({
-                slot: idx + 1,
-                player: { connect: { id: pid } },
-              })),
-            },
-          },
-          include: { members: { include: { player: true }, orderBy: slotOrder } },
-        })
+    while (attempt < MAX_RETRIES) {
+      try {
+        created = await prisma.$transaction(
+          (tx) => createTeamWithMembers(tx, { prefix, age, division, lvl, playerIds: ids }),
+          { isolationLevel: "Serializable" }
+        )
+        lastErr = null
+        break
+      } catch (e) {
+        // Unique constraint on Team_code_key → try again
+        if (e?.code === "P2002" && Array.isArray(e?.meta?.target) && e.meta.target.includes("code")) {
+          attempt++
+          lastErr = e
+          continue
+        }
+        throw e
+      }
+    }
 
-        return created
-      },
-      { isolationLevel: "Serializable" }
-    )
+    if (!created) {
+      console.error("[teams.create] exhausted retries on code collision", lastErr)
+      return res.status(500).send("Failed to create team (code conflict)")
+    }
 
-    res.status(201).json({
-      id: result.code,
+    return res.status(201).json({
+      id: created.code,
       ageGroup,
       category,
       level,
-      players: result.members.map((m) => m.player.name),
-      timestamp: new Date(result.createdAt).getTime(),
-      _dbId: result.id,
+      players: created.members.map((m) => m.player.name),
+      timestamp: new Date(created.createdAt).getTime(),
+      _dbId: created.id,
     })
   } catch (e) {
-    console.error(e)
-    res.status(e.status || 500).send(e.message || "Failed to create team")
+    // Friendly messages for common Prisma errors
+    if (e?.code === "P2003") {
+      // FK violation
+      return res.status(400).send("Invalid playerIds (foreign key)")
+    }
+    if (e?.status) {
+      return res.status(e.status).send(e.message)
+    }
+    console.error("[teams.create] error", { code: e?.code, meta: e?.meta, message: e?.message })
+    return res.status(500).send(e?.message || "Failed to create team")
   }
 })
 
@@ -230,9 +274,7 @@ r.put("/:id", async (req, res) => {
     const nextLvl = level ? uiToLevel(level) : team.level
 
     const ids = parsePlayerIds(playerIds)
-    if (ids.length) {
-      await validateDivisionAndPlayers(nextDiv, ids)
-    }
+    if (ids.length) await validateDivisionAndPlayers(nextDiv, ids)
 
     // recompute code if prefix changed
     let nextCode = team.code
@@ -280,8 +322,14 @@ r.put("/:id", async (req, res) => {
       _dbId: updated.id,
     })
   } catch (e) {
-    console.error(e)
-    res.status(e.status || 500).send(e.message || "Failed to update team")
+    if (e?.code === "P2002") {
+      return res.status(409).send("Team code already exists")
+    }
+    if (e?.status) {
+      return res.status(e.status).send(e.message)
+    }
+    console.error("[teams.update] error", { code: e?.code, meta: e?.meta, message: e?.message })
+    res.status(500).send(e?.message || "Failed to update team")
   }
 })
 
@@ -294,35 +342,28 @@ r.delete("/:id", async (req, res) => {
     await prisma.team.delete({ where: { id: team.id } })
     res.sendStatus(204)
   } catch (e) {
-    console.error(e)
+    console.error("[teams.delete] error", e)
     res.status(500).send("Failed to delete team")
   }
 })
 
-// Diagnostics: Prisma + model shapes
-r.get("/__diag/prisma-team", (req, res) => {
-  try {
-    const team = prisma.dmmf?.datamodel?.models?.find((m) => m.name === "Team")
-    res.json({
-      prismaVersion: prisma.prismaVersion?.client,
-      teamModel: team || null,
-    })
-  } catch (e) {
-    res.status(500).json({ error: String(e) })
-  }
-})
-
+/* ================= Diagnostics (temporary) ================= */
+// These use Prisma’s static metadata (DMMF). Safe to keep off in prod if you prefer.
 r.get("/__diag/prisma-models", (req, res) => {
   try {
-    const models = prisma.dmmf?.datamodel?.models?.map((m) => m.name) || []
-    res.json({
-      prismaVersion: prisma.prismaVersion?.client,
-      models,
-    })
+    const models = Prisma?.dmmf?.datamodel?.models?.map((m) => m.name) || []
+    res.json({ prismaVersion: Prisma.prismaVersion?.client, models })
   } catch (e) {
     res.status(500).json({ error: String(e) })
   }
 })
-
+r.get("/__diag/prisma-team", (req, res) => {
+  try {
+    const team = Prisma?.dmmf?.datamodel?.models?.find((m) => m.name === "Team") || null
+    res.json({ prismaVersion: Prisma.prismaVersion?.client, teamModel: team })
+  } catch (e) {
+    res.status(500).json({ error: String(e) })
+  }
+})
 
 export default r
