@@ -302,9 +302,9 @@ r.delete("/:id", async (req, res) => {
 // Diagnostics: Prisma + model shapes
 r.get("/__diag/prisma-team", (req, res) => {
   try {
-    const team = PrismaClient.dmmf?.datamodel?.models?.find((m) => m.name === "Team")
+    const team = prisma.dmmf?.datamodel?.models?.find((m) => m.name === "Team")
     res.json({
-      prismaVersion: PrismaClient.prismaVersion?.client,
+      prismaVersion: prisma.prismaVersion?.client,
       teamModel: team || null,
     })
   } catch (e) {
@@ -314,9 +314,9 @@ r.get("/__diag/prisma-team", (req, res) => {
 
 r.get("/__diag/prisma-models", (req, res) => {
   try {
-    const models = PrismaClient.dmmf?.datamodel?.models?.map((m) => m.name) || []
+    const models = prisma.dmmf?.datamodel?.models?.map((m) => m.name) || []
     res.json({
-      prismaVersion: PrismaClient.prismaVersion?.client,
+      prismaVersion: prisma.prismaVersion?.client,
       models,
     })
   } catch (e) {
