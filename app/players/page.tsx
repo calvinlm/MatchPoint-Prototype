@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
 import { PlayerCard } from "@/components/players/player-card"
 import { PlayerRow } from "@/components/players/player-row"
@@ -29,6 +29,7 @@ import {
   DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { useCsvImport } from "@/hooks/use-csv-import"
 
 
 const createMockPlayer = (id: number, fullName: string): Player => {
@@ -66,6 +67,12 @@ type SortKey = "name" | "gender" | "age" | "status"
 type SortDir = "asc" | "desc"
 type AgeCat = "all" | "junior" | "18plus" | "35plus" | "55plus"
 type GenderFilter = "all" | "male" | "female"
+type PlayerImportFieldKey = "playerName" | "teamName" | "seed"
+type PlayerImportRow = {
+  name: string
+  teamName?: string | null
+  seed?: number
+}
 
 export default function PlayersPage() {
   const userRoles: UserRole[] = ["director"]
@@ -218,8 +225,12 @@ async function handleEditSubmit(e: React.FormEvent) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    async function loadPlayers() {
+  const fetchPlayers = useCallback(
+    async (options?: { silent?: boolean }) => {
+      if (!options?.silent) {
+        setLoading(true)
+      }
+      setError(null)
       try {
         const res = await fetch(`${API_BASE}/api/players`)
         if (!res.ok) throw new Error("Failed to fetch players.")
@@ -231,9 +242,13 @@ async function handleEditSubmit(e: React.FormEvent) {
       } finally {
         setLoading(false)
       }
-    }
-    loadPlayers()
-  }, [])
+    },
+    []
+  )
+
+  useEffect(() => {
+    fetchPlayers()
+  }, [fetchPlayers])
 
   // Helpers
   const normGender = (g: any) => String(g ?? "").toLowerCase().trim()
@@ -375,35 +390,201 @@ async function confirmDelete() {
   const handleDeleteTeam = (id: string) => console.log(`[v1] Delete team ${id}`)
   const handleAddPlayerToTeam = (id: string) => console.log(`[v1] Add player to team ${id}`)
 
+  const playerImportFields = useMemo(
+    () => [
+      {
+        key: "playerName" as const,
+        label: "Player name",
+        description: "Required. Each row should include the participant's full name.",
+        required: true,
+      },
+      {
+        key: "teamName" as const,
+        label: "Team name",
+        description:
+          "Optional. Players with the same team name will be grouped together when teams are created.",
+      },
+      {
+        key: "seed" as const,
+        label: "Seed",
+        description: "Optional numeric seed that will be stored on the player or related team.",
+      },
+    ],
+    []
+  )
+
+  const playerTemplateDescription = useMemo(
+    () => (
+      <div className="space-y-2">
+        <p>
+          Include a header row with clear column names. The simplest template uses columns such as{" "}
+          <code className="mx-1 rounded bg-muted px-1 py-0.5 text-xs">Player Name</code>,{" "}
+          <code className="mx-1 rounded bg-muted px-1 py-0.5 text-xs">Team Name</code>, and{" "}
+          <code className="mx-1 rounded bg-muted px-1 py-0.5 text-xs">Seed</code>.
+        </p>
+        <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
+          <li><strong>Player Name</strong> is required for every row.</li>
+          <li>
+            <strong>Team Name</strong> is optional; leave blank if the player has no team or if teams are
+            managed separately.
+          </li>
+          <li>
+            <strong>Seed</strong> accepts whole numbers. Non-numeric values will be flagged during validation.
+          </li>
+        </ul>
+        <p className="text-xs text-muted-foreground">
+          Save the sheet as a UTF-8 CSV file before uploading. Column selections are saved for your next import.
+        </p>
+      </div>
+    ),
+    []
+  )
+
+  const transformPlayerRow = useCallback(
+    ({ row, mapping }: { row: Record<string, string>; mapping: Record<PlayerImportFieldKey, string | null> }) => {
+      const readValue = (field: PlayerImportFieldKey) => {
+        const column = mapping[field]
+        if (!column) return ""
+        const value = row[column]
+        if (value == null) return ""
+        return String(value).trim()
+      }
+
+      const errors: string[] = []
+      const name = readValue("playerName")
+      const teamNameValue = readValue("teamName")
+      const seedValue = readValue("seed")
+
+      if (!name) {
+        errors.push("Player name is required.")
+      }
+
+      let seedNumber: number | undefined
+      if (seedValue) {
+        const numericSeed = Number(seedValue)
+        if (!Number.isFinite(numericSeed)) {
+          errors.push(`Seed must be numeric (received "${seedValue}").`)
+        } else {
+          seedNumber = numericSeed
+        }
+      }
+
+      const data: PlayerImportRow = {
+        name,
+      }
+
+      if (teamNameValue) {
+        data.teamName = teamNameValue
+      }
+      if (seedNumber !== undefined) {
+        data.seed = seedNumber
+      }
+
+      return {
+        data: errors.length ? undefined : data,
+        errors,
+      }
+    },
+    []
+  )
+
+  const handlePlayerImportSubmit = useCallback(
+    async (rows: PlayerImportRow[]) => {
+      const res = await fetch(`${API_BASE}/api/players/bulk-import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ players: rows }),
+      })
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "")
+        throw new Error(text || "Failed to import players.")
+      }
+
+      let updatedFromResponse = false
+      try {
+        const json = await res.json()
+        if (Array.isArray(json)) {
+          setPlayers(json)
+          updatedFromResponse = true
+        } else if (json && Array.isArray(json.players)) {
+          setPlayers(json.players)
+          updatedFromResponse = true
+        }
+      } catch (err) {
+        // Some endpoints may not return JSON on success; fall back to refetching.
+        console.warn("Bulk import response was not JSON", err)
+      }
+
+      if (!updatedFromResponse) {
+        await fetchPlayers({ silent: true })
+      }
+
+      const count = rows.length
+      return {
+        message: `Imported ${count} player${count === 1 ? "" : "s"}.`,
+      }
+    },
+    [fetchPlayers]
+  )
+
+  const {
+    triggerImport: triggerPlayerImport,
+    FileInput: playerFileInput,
+    ImportDialog: playerImportDialog,
+  } = useCsvImport<PlayerImportFieldKey, PlayerImportRow>({
+    contextKey: "players",
+    fields: playerImportFields,
+    transformRow: ({ row, mapping }) => transformPlayerRow({ row, mapping }),
+    onSubmit: handlePlayerImportSubmit,
+    templateDescription: playerTemplateDescription,
+    title: "Import players",
+    description: "Preview and validate player data before sending it to the bulk import API.",
+  })
+
   const totalPlayers = players.length
+  const playerImportElements = (
+    <>
+      {playerFileInput}
+      {playerImportDialog}
+    </>
+  )
 
   if (loading) {
     return (
-      <AppLayout userRoles={userRoles} userName="Tournament Director">
-        <div className="p-10 text-muted-foreground">Loading players...</div>
-      </AppLayout>
+      <>
+        {playerImportElements}
+        <AppLayout userRoles={userRoles} userName="Tournament Director">
+          <div className="p-10 text-muted-foreground">Loading players...</div>
+        </AppLayout>
+      </>
     )
   }
 
   if (error) {
     return (
-      <AppLayout userRoles={userRoles} userName="Tournament Director">
-        <div className="p-10 text-red-600">Error: {error}</div>
-      </AppLayout>
+      <>
+        {playerImportElements}
+        <AppLayout userRoles={userRoles} userName="Tournament Director">
+          <div className="p-10 text-red-600">Error: {error}</div>
+        </AppLayout>
+      </>
     )
   }
 
   return (
-    <AppLayout userRoles={userRoles} userName="Tournament Director">
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Players & Teams</h1>
+    <>
+      {playerImportElements}
+      <AppLayout userRoles={userRoles} userName="Tournament Director">
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Players & Teams</h1>
             <p className="text-muted-foreground">Manage tournament participants and team assignments</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline">
+            <Button variant="outline" onClick={triggerPlayerImport}>
               <Upload className="h-4 w-4 mr-2" />
               Import
             </Button>
@@ -849,6 +1030,7 @@ async function confirmDelete() {
           </TabsContent>
         </Tabs>
       </div>
-    </AppLayout>
+      </AppLayout>
+    </>
   )
 }

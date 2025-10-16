@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -9,6 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import type { Event } from "@/lib/types"
 import { Shuffle, Upload, Plus } from "lucide-react"
+import { useCsvImport } from "@/hooks/use-csv-import"
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "https://matchpoint-prototype.onrender.com"
 
 interface BracketBuilderProps {
   onCreateBracket?: (event: Partial<Event>) => void
@@ -19,6 +22,13 @@ interface TeamEntry {
   name: string
   seed?: number
   players: string[]
+}
+
+type TeamImportFieldKey = "teamName" | "players" | "seed"
+type TeamImportRow = {
+  teamName: string
+  players: string[]
+  seed?: number
 }
 
 export function BracketBuilder({ onCreateBracket }: BracketBuilderProps) {
@@ -35,6 +45,203 @@ export function BracketBuilder({ onCreateBracket }: BracketBuilderProps) {
     { id: "3", name: "Team Gamma", players: ["Chris Brown", "Lisa Davis"], seed: 3 },
     { id: "4", name: "Team Delta", players: ["Alex Miller", "Emma Taylor"], seed: 4 },
   ])
+
+  const teamImportFields = useMemo(
+    () => [
+      {
+        key: "teamName" as const,
+        label: "Team name",
+        description: "Required. The name that will appear on the bracket.",
+        required: true,
+      },
+      {
+        key: "players" as const,
+        label: "Players",
+        description:
+          "Required. Separate multiple player names with commas, slashes, or ampersands (e.g. \"Jane Doe & John Doe\").",
+        required: true,
+      },
+      {
+        key: "seed" as const,
+        label: "Seed",
+        description: "Optional numeric seed used when ordering teams in the bracket.",
+      },
+    ],
+    []
+  )
+
+  const teamTemplateDescription = useMemo(
+    () => (
+      <div className="space-y-2">
+        <p>
+          Recommended headers include{" "}
+          <code className="mx-1 rounded bg-muted px-1 py-0.5 text-xs">Team Name</code>,{" "}
+          <code className="mx-1 rounded bg-muted px-1 py-0.5 text-xs">Players</code>, and{" "}
+          <code className="mx-1 rounded bg-muted px-1 py-0.5 text-xs">Seed</code>.
+        </p>
+        <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
+          <li><strong>Team Name</strong> should be unique within the event.</li>
+          <li>
+            <strong>Players</strong> accepts one or more names. Use separators like commas, slashes, or ampersands to
+            keep partners together.
+          </li>
+          <li>
+            <strong>Seed</strong> is optional; if omitted we will maintain the upload order.
+          </li>
+        </ul>
+        <p className="text-xs text-muted-foreground">
+          The column mapping you choose is stored locally so repeat imports go faster.
+        </p>
+      </div>
+    ),
+    []
+  )
+
+  const transformTeamRow = useCallback(
+    ({ row, mapping }: { row: Record<string, string>; mapping: Record<TeamImportFieldKey, string | null> }) => {
+      const readValue = (field: TeamImportFieldKey) => {
+        const column = mapping[field]
+        if (!column) return ""
+        const value = row[column]
+        if (value == null) return ""
+        return String(value).trim()
+      }
+
+      const errors: string[] = []
+      const teamName = readValue("teamName")
+      const playersValue = readValue("players")
+      const seedValue = readValue("seed")
+
+      if (!teamName) {
+        errors.push("Team name is required.")
+      }
+
+      const players = playersValue
+        ? playersValue
+            .split(/[,&/;]+/)
+            .map((name) => name.trim())
+            .filter(Boolean)
+        : []
+
+      if (!players.length) {
+        errors.push("List at least one player name for each team.")
+      }
+
+      let seedNumber: number | undefined
+      if (seedValue) {
+        const numericSeed = Number(seedValue)
+        if (!Number.isFinite(numericSeed)) {
+          errors.push(`Seed must be numeric (received "${seedValue}").`)
+        } else {
+          seedNumber = numericSeed
+        }
+      }
+
+      const data: TeamImportRow = {
+        teamName,
+        players,
+      }
+
+      if (seedNumber !== undefined) {
+        data.seed = seedNumber
+      }
+
+      return {
+        data: errors.length ? undefined : data,
+        errors,
+      }
+    },
+    []
+  )
+
+  const handleTeamImportSubmit = useCallback(
+    async (rows: TeamImportRow[]) => {
+      const res = await fetch(`${API_BASE}/api/teams/bulk-import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ teams: rows }),
+      })
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "")
+        throw new Error(text || "Failed to import teams.")
+      }
+
+      let updatedFromResponse = false
+      const timestamp = Date.now()
+
+      try {
+        const json = await res.json()
+        const adaptResponse = (source: any, index: number): TeamEntry => {
+          const playerList = Array.isArray(source?.players)
+            ? source.players
+                .map((player: any) =>
+                  typeof player === "string" ? player.trim() : (player?.name ?? "")
+                )
+                .filter(Boolean)
+            : []
+          const fallbackPlayers = rows[index]?.players ?? []
+          return {
+            id: String(source?.id ?? source?.teamId ?? `${timestamp}-${index}`),
+            name: String(source?.name ?? source?.teamName ?? rows[index]?.teamName ?? `Team ${index + 1}`),
+            players: playerList.length ? playerList : fallbackPlayers,
+            seed:
+              typeof source?.seed === "number"
+                ? source.seed
+                : rows[index]?.seed ?? index + 1,
+          }
+        }
+
+        if (Array.isArray(json)) {
+          setTeams(json.map((item, index) => adaptResponse(item, index)))
+          updatedFromResponse = true
+        } else if (json && Array.isArray(json.teams)) {
+          setTeams(json.teams.map((item: any, index: number) => adaptResponse(item, index)))
+          updatedFromResponse = true
+        }
+      } catch (err) {
+        console.warn("Bulk team import did not return JSON", err)
+      }
+
+      if (!updatedFromResponse) {
+        setTeams(
+          rows.map((row, index) => ({
+            id: `${timestamp}-${index}`,
+            name: row.teamName,
+            players: row.players,
+            seed: row.seed ?? index + 1,
+          }))
+        )
+      }
+
+      const count = rows.length
+      return {
+        message: `Imported ${count} team${count === 1 ? "" : "s"}.`,
+      }
+    },
+    [setTeams]
+  )
+
+  const {
+    triggerImport: triggerTeamImport,
+    FileInput: teamFileInput,
+    ImportDialog: teamImportDialog,
+  } = useCsvImport<TeamImportFieldKey, TeamImportRow>({
+    contextKey: "teams",
+    fields: teamImportFields,
+    transformRow: ({ row, mapping }) => transformTeamRow({ row, mapping }),
+    onSubmit: handleTeamImportSubmit,
+    templateDescription: teamTemplateDescription,
+    title: "Import teams",
+    description: "Review team assignments before bulk importing them into the event.",
+  })
+
+  const teamImportElements = (
+    <>
+      {teamFileInput}
+      {teamImportDialog}
+    </>
+  )
 
   const handleShuffle = () => {
     const shuffled = [...teams].sort(() => Math.random() - 0.5)
@@ -56,6 +263,7 @@ export function BracketBuilder({ onCreateBracket }: BracketBuilderProps) {
 
   return (
     <div className="space-y-6">
+      {teamImportElements}
       <Card>
         <CardHeader>
           <CardTitle>Tournament Format</CardTitle>
@@ -142,7 +350,7 @@ export function BracketBuilder({ onCreateBracket }: BracketBuilderProps) {
                 <Shuffle className="h-4 w-4 mr-2" />
                 Shuffle
               </Button>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={triggerTeamImport}>
                 <Upload className="h-4 w-4 mr-2" />
                 Import
               </Button>
