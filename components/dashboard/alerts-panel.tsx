@@ -4,20 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { AlertTriangle, Clock, UserX, X } from "lucide-react"
-
-interface Alert {
-  id: string
-  type: "conflict" | "missing_ref" | "delay" | "warning"
-  title: string
-  message: string
-  timestamp: Date
-  actionLabel?: string
-  onAction?: () => void
-  onDismiss?: () => void
-}
+import type { AlertMessage } from "@/lib/types"
 
 interface AlertsPanelProps {
-  alerts: Alert[]
+  alerts: (AlertMessage & {
+    onAction?: () => void
+    onDismiss?: () => void
+  })[]
   onDismissAlert?: (alertId: string) => void
 }
 
@@ -68,7 +61,9 @@ export function AlertsPanel({ alerts, onDismissAlert }: AlertsPanelProps) {
                       {config.icon}
                       {alert.type.replace("_", " ")}
                     </Badge>
-                    <span className="text-xs text-muted-foreground">{alert.timestamp.toLocaleTimeString()}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(alert.timestamp).toLocaleTimeString()}
+                    </span>
                   </div>
                   <Button variant="ghost" size="sm" onClick={() => onDismissAlert?.(alert.id)} className="h-6 w-6 p-0">
                     <X className="h-3 w-3" />

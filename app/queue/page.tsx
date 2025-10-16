@@ -1,120 +1,137 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
 import { QueueTable } from "@/components/queue/queue-table"
 import { CourtsGrid } from "@/components/queue/courts-grid"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import type { UserRole, Court, Match, QueueItem } from "@/lib/types"
+import type { Court, Match, QueueItem, UserRole } from "@/lib/types"
+import { useCourts, useMatches, useQueue } from "@/hooks/use-tournament-data"
+import { reorderQueue as persistQueueOrder, startMatch as startMatchApi, updateCourt, updateMatch } from "@/lib/api"
+import { useSocket } from "@/hooks/use-socket"
 import { RefreshCw, Filter, Plus } from "lucide-react"
-
-// Mock data
-const mockCourts: Court[] = [
-  { id: "1", name: "Court 1", location: "Main Hall", status: "playing" },
-  { id: "2", name: "Court 2", location: "Main Hall", status: "idle" },
-  { id: "3", name: "Court 3", location: "Side Courts", status: "cleaning" },
-  { id: "4", name: "Court 4", location: "Side Courts", status: "idle" },
-]
-
-const mockMatches: Match[] = [
-  {
-    id: "1",
-    number: 101,
-    eventId: "1",
-    round: 1,
-    courtId: "1",
-    refereeId: "ref1",
-    teams: [
-      { id: "1", players: [{ id: "1", firstName: "John", lastName: "Smith" }], eventId: "1", seed: 1 },
-      { id: "2", players: [{ id: "2", firstName: "Jane", lastName: "Doe" }], eventId: "1", seed: 8 },
-    ],
-    status: "live",
-    games: [{ seq: 1, scoreA: 7, scoreB: 5, serving: "A", timeoutsA: 0, timeoutsB: 1 }],
-  },
-  {
-    id: "2",
-    number: 102,
-    eventId: "1",
-    round: 1,
-    teams: [
-      { id: "3", players: [{ id: "3", firstName: "Mike", lastName: "Johnson" }], eventId: "1", seed: 2 },
-      { id: "4", players: [{ id: "4", firstName: "Sarah", lastName: "Wilson" }], eventId: "1", seed: 7 },
-    ],
-    status: "queued",
-    games: [],
-  },
-  {
-    id: "3",
-    number: 103,
-    eventId: "1",
-    round: 1,
-    refereeId: "ref2",
-    teams: [
-      { id: "5", players: [{ id: "5", firstName: "Chris", lastName: "Brown" }], eventId: "1", seed: 3 },
-      { id: "6", players: [{ id: "6", firstName: "Lisa", lastName: "Davis" }], eventId: "1", seed: 6 },
-    ],
-    status: "queued",
-    games: [],
-  },
-  {
-    id: "4",
-    number: 104,
-    eventId: "1",
-    round: 1,
-    teams: [
-      { id: "7", players: [{ id: "7", firstName: "Alex", lastName: "Miller" }], eventId: "1", seed: 4 },
-      { id: "8", players: [{ id: "8", firstName: "Emma", lastName: "Taylor" }], eventId: "1", seed: 5 },
-    ],
-    status: "queued",
-    games: [],
-  },
-]
-
-const mockQueueItems: (QueueItem & { match: Match })[] = [
-  { id: "1", matchId: "2", priority: 1, match: mockMatches[1] },
-  { id: "2", matchId: "3", priority: 2, match: mockMatches[2] },
-  { id: "3", matchId: "4", priority: 3, match: mockMatches[3] },
-]
 
 export default function QueuePage() {
   const userRoles: UserRole[] = ["director"]
-  const [courts, setCourts] = useState(mockCourts)
-  const [matches, setMatches] = useState(mockMatches)
-  const [queueItems, setQueueItems] = useState(mockQueueItems)
+  const { data: courts, setData: setCourts, refresh: refreshCourts } = useCourts()
+  const { data: matches, setData: setMatches, refresh: refreshMatches } = useMatches()
+  const { data: queueItems, setData: setQueueItems, refresh: refreshQueue } = useQueue()
   const [eventFilter, setEventFilter] = useState<string>("all")
+  const socket = useSocket()
+
+  useEffect(() => {
+    if (!socket) return
+
+    const handleQueueUpdated = (payload: unknown) => {
+      if (Array.isArray(payload)) {
+        setQueueItems(payload as (QueueItem & { match?: Match })[])
+      }
+    }
+
+    const handleMatchUpdated = (payload: unknown) => {
+      const match = payload as Match
+      if (!match?.id) return
+      setMatches((prev) => {
+        const index = prev.findIndex((item) => item.id === match.id)
+        if (index === -1) return prev
+        const next = [...prev]
+        next[index] = { ...next[index], ...match }
+        return next
+      })
+    }
+
+    socket.on("queue_updated", handleQueueUpdated)
+    socket.on("match_update", handleMatchUpdated)
+
+    return () => {
+      socket.off("queue_updated", handleQueueUpdated)
+      socket.off("match_update", handleMatchUpdated)
+    }
+  }, [socket, setMatches, setQueueItems])
+
+  const queueWithMatches = useMemo<(QueueItem & { match: Match })[]>(() => {
+    if (!matches.length) return []
+    const matchMap = new Map(matches.map((match) => [match.id, match]))
+
+    return queueItems
+      .map((item) => ({
+        ...item,
+        match: item.match ?? matchMap.get(item.matchId),
+      }))
+      .filter((item): item is QueueItem & { match: Match } => Boolean(item.match))
+  }, [matches, queueItems])
 
   const handleAssignCourt = (matchId: string, courtId: string) => {
-    setMatches((prev) => prev.map((match) => (match.id === matchId ? { ...match, courtId } : match)))
-    console.log(`Assigned match ${matchId} to court ${courtId}`)
+    const previousMatches = matches
+    setMatches((prev) => prev.map((match) => (match.id === matchId ? { ...match, courtId, status: "assigned" } : match)))
+
+    void updateMatch(matchId, { courtId, status: "assigned" })
+      .then(() => Promise.all([refreshCourts(), refreshQueue()]))
+      .catch((error) => {
+        console.error("Failed to assign court", error)
+        setMatches(previousMatches)
+      })
   }
 
   const handleAssignReferee = (matchId: string) => {
-    setMatches((prev) =>
-      prev.map((match) => (match.id === matchId ? { ...match, refereeId: `ref-${Date.now()}` } : match)),
-    )
-    console.log(`Assigned referee to match ${matchId}`)
+    const newRefereeId = `ref-${Date.now()}`
+    const previousMatches = matches
+    setMatches((prev) => prev.map((match) => (match.id === matchId ? { ...match, refereeId: newRefereeId } : match)))
+
+    void updateMatch(matchId, { refereeId: newRefereeId })
+      .then(() => refreshQueue())
+      .catch((error) => {
+        console.error("Failed to assign referee", error)
+        setMatches(previousMatches)
+      })
   }
 
   const handleChangeCourtStatus = (courtId: string, status: Court["status"]) => {
+    const previousCourts = courts
     setCourts((prev) => prev.map((court) => (court.id === courtId ? { ...court, status } : court)))
+
+    void updateCourt(courtId, { status })
+      .then(() => refreshCourts())
+      .catch((error) => {
+        console.error("Failed to update court status", error)
+        setCourts(previousCourts)
+      })
   }
 
   const handleStartMatch = (matchId: string) => {
+    const previousMatches = matches
+    const previousQueueItems = queueItems
     setMatches((prev) => prev.map((match) => (match.id === matchId ? { ...match, status: "live" as const } : match)))
-    // Remove from queue when started
     setQueueItems((prev) => prev.filter((item) => item.matchId !== matchId))
-    console.log(`Started match ${matchId}`)
+
+    void startMatchApi(matchId)
+      .then(() => Promise.all([refreshMatches(), refreshQueue(), refreshCourts()]))
+      .catch((error) => {
+        console.error("Failed to start match", error)
+        setMatches(previousMatches)
+        setQueueItems(previousQueueItems)
+      })
   }
 
   const handleReorderQueue = (newItems: QueueItem[]) => {
-    setQueueItems(newItems as (QueueItem & { match: Match })[])
+    const previousQueueItems = queueItems
+    const normalized = newItems.map((item, index) => ({ ...item, priority: index + 1 }))
+    setQueueItems(normalized as (QueueItem & { match?: Match })[])
+
+    void persistQueueOrder(normalized.map((item) => ({ id: item.id, priority: item.priority })))
+      .then(() => refreshQueue())
+      .catch((error) => {
+        console.error("Failed to reorder queue", error)
+        setQueueItems(previousQueueItems)
+      })
   }
 
   const activeMatches = matches.filter((m) => m.status === "live").length
-  const queuedMatches = queueItems.length
+  const queuedMatches = queueWithMatches.length
   const availableCourts = courts.filter((c) => c.status === "idle").length
+
 
   return (
     <AppLayout userRoles={userRoles} userName="Tournament Director">
@@ -126,7 +143,13 @@ export default function QueuePage() {
             <p className="text-muted-foreground">Manage match assignments and court scheduling</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void Promise.all([refreshCourts(), refreshMatches(), refreshQueue()])
+              }}
+            >
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
             </Button>
@@ -191,7 +214,7 @@ export default function QueuePage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Queue Table */}
           <QueueTable
-            queueItems={queueItems}
+            queueItems={queueWithMatches}
             courts={courts}
             onAssignCourt={handleAssignCourt}
             onAssignReferee={handleAssignReferee}
@@ -205,7 +228,7 @@ export default function QueuePage() {
           <CourtsGrid
             courts={courts}
             matches={matches}
-            queueItems={queueItems}
+            queueItems={queueWithMatches}
             onAssignMatch={handleAssignCourt}
             onViewScoreboard={(courtId) => console.log(`View scoreboard for court ${courtId}`)}
             onChangeCourtStatus={handleChangeCourtStatus}
