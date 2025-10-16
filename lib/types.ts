@@ -79,3 +79,12 @@ export interface QueueItem {
   priority: number
   note?: string
 }
+
+export interface AlertMessage {
+  id: string
+  type: "conflict" | "missing_ref" | "delay" | "warning"
+  title: string
+  message: string
+  timestamp: Date
+  actionLabel?: string
+}

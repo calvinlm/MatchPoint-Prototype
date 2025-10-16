@@ -1,49 +1,63 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { CourtScoreboard } from "@/components/scoreboard/court-scoreboard"
+import { useCourts, useMatch } from "@/hooks/use-tournament-data"
+import { useSocket } from "@/hooks/use-socket"
 import type { Match } from "@/lib/types"
-
-// Mock live match data
-const mockMatch: Match = {
-  id: "1",
-  number: 101,
-  eventId: "1",
-  round: 2,
-  courtId: "1",
-  refereeId: "ref1",
-  teams: [
-    {
-      id: "1",
-      players: [{ id: "1", firstName: "John", lastName: "Smith" }],
-      eventId: "1",
-      seed: 1,
-      name: "Team Alpha",
-    },
-    {
-      id: "2",
-      players: [{ id: "2", firstName: "Jane", lastName: "Doe" }],
-      eventId: "1",
-      seed: 4,
-      name: "Team Beta",
-    },
-  ],
-  status: "live",
-  games: [
-    { seq: 1, scoreA: 11, scoreB: 7, serving: "A", timeoutsA: 1, timeoutsB: 0 },
-    { seq: 2, scoreA: 9, scoreB: 11, serving: "B", timeoutsA: 0, timeoutsB: 1 },
-    { seq: 3, scoreA: 8, scoreB: 5, serving: "A", timeoutsA: 0, timeoutsB: 0 },
-  ],
-}
 
 export default function ScoreboardPage() {
   const [showQR, setShowQR] = useState(false)
+  const searchParams = useSearchParams()
+  const matchId = searchParams.get("matchId")
+  const { match, setMatch, isLoading, error } = useMatch(matchId)
+  const { data: courts } = useCourts()
+  const socket = useSocket()
+
+  useEffect(() => {
+    if (!socket || !matchId) return
+
+    const handleScoreUpdate = (payload: Match) => {
+      if (!payload?.id || payload.id !== matchId) return
+      setMatch((previous) => ({ ...(previous ?? payload), ...payload }))
+    }
+
+    socket.emit("join_match", matchId)
+    socket.on("score_update", handleScoreUpdate)
+
+    return () => {
+      socket.emit("leave_match", matchId)
+      socket.off("score_update", handleScoreUpdate)
+    }
+  }, [matchId, setMatch, socket])
+
+  const courtName = useMemo(() => {
+    if (!match?.courtId) return undefined
+    return courts.find((court) => court.id === match.courtId)?.name
+  }, [courts, match])
+
+  if (!matchId) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background text-foreground">
+        <p className="text-lg font-medium">Select a match to view its scoreboard.</p>
+      </div>
+    )
+  }
+
+  if (isLoading || !match) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background text-foreground">
+        <p className="text-lg font-medium">{error ? "Unable to load match." : "Loading match details..."}</p>
+      </div>
+    )
+  }
 
   return (
     <div className="w-full h-screen overflow-hidden">
       <CourtScoreboard
-        match={mockMatch}
-        courtName="Court 1"
+        match={match}
+        courtName={courtName ?? "Court"}
         onToggleContrast={() => console.log("Toggle contrast")}
         onShowQR={() => setShowQR(!showQR)}
       />

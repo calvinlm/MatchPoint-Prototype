@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
 import { KpiCard } from "@/components/dashboard/kpi-card"
 import { CourtCard } from "@/components/dashboard/court-card"
@@ -7,70 +8,56 @@ import { QueuePreview } from "@/components/dashboard/queue-preview"
 import { AlertsPanel } from "@/components/dashboard/alerts-panel"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import type { UserRole, Court, Match } from "@/lib/types"
+import type { Match, QueueItem, UserRole } from "@/lib/types"
+import { useAlerts, useCourts, useMatches, useQueue } from "@/hooks/use-tournament-data"
+import { updateMatch } from "@/lib/api"
 import { Trophy, Users, Play, CheckCircle, Plus, UserPlus, MoreHorizontal } from "lucide-react"
-
-// Mock data for demonstration
-const mockCourts: Court[] = [
-  { id: "1", name: "Court 1", location: "Main Hall", status: "playing" },
-  { id: "2", name: "Court 2", location: "Main Hall", status: "idle" },
-  { id: "3", name: "Court 3", location: "Side Courts", status: "cleaning" },
-  { id: "4", name: "Court 4", location: "Side Courts", status: "hold" },
-]
-
-const mockMatches: Match[] = [
-  {
-    id: "1",
-    number: 101,
-    eventId: "1",
-    round: 1,
-    teams: [
-      { id: "1", players: [{ id: "1", firstName: "John", lastName: "Smith" }], eventId: "1" },
-      { id: "2", players: [{ id: "2", firstName: "Jane", lastName: "Doe" }], eventId: "1" },
-    ],
-    status: "live",
-    games: [],
-  },
-  {
-    id: "2",
-    number: 102,
-    eventId: "1",
-    round: 1,
-    teams: [
-      { id: "3", players: [{ id: "3", firstName: "Mike", lastName: "Johnson" }], eventId: "1" },
-      { id: "4", players: [{ id: "4", firstName: "Sarah", lastName: "Wilson" }], eventId: "1" },
-    ],
-    status: "queued",
-    games: [],
-  },
-]
-
-const mockQueueItems = [
-  { id: "1", matchId: "2", priority: 1, match: mockMatches[1] },
-  { id: "2", matchId: "3", priority: 2, match: { ...mockMatches[1], id: "3", number: 103 } },
-]
-
-const mockAlerts = [
-  {
-    id: "1",
-    type: "missing_ref" as const,
-    title: "Referee Needed",
-    message: "Court 1 match requires a referee assignment",
-    timestamp: new Date(),
-    actionLabel: "Assign Referee",
-    onAction: () => console.log("Assign referee"),
-  },
-  {
-    id: "2",
-    type: "delay" as const,
-    title: "Schedule Delay",
-    message: "Match 101 running 15 minutes behind schedule",
-    timestamp: new Date(Date.now() - 300000),
-  },
-]
 
 export default function DashboardPage() {
   const userRoles: UserRole[] = ["director"] // Mock user role
+  const { data: courts, refresh: refreshCourts } = useCourts()
+  const { data: matches, setData: setMatches } = useMatches()
+  const { data: queueItems, refresh: refreshQueue } = useQueue()
+  const { data: alerts, setData: setAlerts } = useAlerts()
+
+  const queueWithMatches = useMemo<(QueueItem & { match: Match })[]>(() => {
+    if (!matches.length) return []
+    const matchMap = new Map(matches.map((match) => [match.id, match]))
+
+    return queueItems
+      .map((item) => ({
+        ...item,
+        match: item.match ?? matchMap.get(item.matchId),
+      }))
+      .filter((item): item is QueueItem & { match: Match } => Boolean(item.match))
+  }, [matches, queueItems])
+
+  const activeCourts = courts.filter((court) => court.status === "playing").length
+  const queuedMatches = queueWithMatches.length
+  const liveMatches = matches.filter((match) => match.status === "live").length
+  const completedMatches = matches.filter((match) => match.status === "completed").length
+
+  const handleAssignToFirstCourt = async (matchId: string) => {
+    const availableCourt = courts.find((court) => court.status === "idle")
+    if (!availableCourt) return
+
+    const previousMatches = matches
+    setMatches((prev) =>
+      prev.map((match) => (match.id === matchId ? { ...match, courtId: availableCourt.id, status: "assigned" } : match)),
+    )
+
+    try {
+      await updateMatch(matchId, { courtId: availableCourt.id, status: "assigned" })
+      await Promise.all([refreshQueue(), refreshCourts()])
+    } catch (error) {
+      console.error("Failed to assign court", error)
+      setMatches(previousMatches)
+    }
+  }
+
+  const handleDismissAlert = (alertId: string) => {
+    setAlerts((prev) => prev.filter((alert) => alert.id !== alertId))
+  }
 
   return (
     <AppLayout userRoles={userRoles} userName="Tournament Director">
@@ -107,25 +94,25 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCard
             title="Courts Active"
-            value="3/4"
+            value={`${activeCourts}/${courts.length}`}
             change={{ value: "+1", trend: "up" }}
             icon={<Play className="h-5 w-5" />}
           />
           <KpiCard
             title="In Queue"
-            value="12"
+            value={queuedMatches.toString()}
             change={{ value: "-2", trend: "down" }}
             icon={<Users className="h-5 w-5" />}
           />
           <KpiCard
             title="Live Matches"
-            value="3"
+            value={liveMatches.toString()}
             change={{ value: "+1", trend: "up" }}
             icon={<Trophy className="h-5 w-5" />}
           />
           <KpiCard
             title="Completed Today"
-            value="47"
+            value={completedMatches.toString()}
             change={{ value: "+15", trend: "up" }}
             icon={<CheckCircle className="h-5 w-5" />}
           />
@@ -137,26 +124,29 @@ export default function DashboardPage() {
           <div className="lg:col-span-2 space-y-4">
             <h2 className="text-lg font-semibold text-foreground">Courts Overview</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {mockCourts.map((court) => (
-                <CourtCard
-                  key={court.id}
-                  court={court}
-                  assignedMatch={court.status === "playing" ? mockMatches[0] : undefined}
-                  onAssignMatch={() => console.log(`Assign match to ${court.name}`)}
-                  onViewScoreboard={() => console.log(`View scoreboard for ${court.name}`)}
-                />
-              ))}
+              {courts.map((court) => {
+                const assignedMatch = matches.find((match) => match.courtId === court.id)
+                return (
+                  <CourtCard
+                    key={court.id}
+                    court={court}
+                    assignedMatch={assignedMatch}
+                    onAssignMatch={() => console.log(`Assign match to ${court.name}`)}
+                    onViewScoreboard={() => console.log(`View scoreboard for ${court.name}`)}
+                  />
+                )
+              })}
             </div>
           </div>
 
           {/* Right Sidebar */}
           <div className="space-y-6">
             <QueuePreview
-              queueItems={mockQueueItems}
+              queueItems={queueWithMatches}
               onViewFullQueue={() => console.log("View full queue")}
-              onAssignToCourt={(matchId) => console.log(`Assign match ${matchId} to court`)}
+              onAssignToCourt={handleAssignToFirstCourt}
             />
-            <AlertsPanel alerts={mockAlerts} onDismissAlert={(id) => console.log(`Dismiss alert ${id}`)} />
+            <AlertsPanel alerts={alerts} onDismissAlert={handleDismissAlert} />
           </div>
         </div>
 
