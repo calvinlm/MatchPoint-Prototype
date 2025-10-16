@@ -10,10 +10,17 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import type { UserRole, Match, Game } from "@/lib/types"
+import type { UserRole, Match, Game, Player } from "@/lib/types"
 import { Wifi, WifiOff, AlertCircle, MapPin, Trophy, AlertTriangle } from "lucide-react" // Added AlertTriangle import
 
 // Mock match data
+const createPlayer = (id: number, firstName: string, lastName: string): Player => ({
+  id,
+  firstName,
+  lastName,
+  name: `${firstName} ${lastName}`,
+})
+
 const mockMatch: Match = {
   id: "1",
   number: 101,
@@ -24,14 +31,14 @@ const mockMatch: Match = {
   teams: [
     {
       id: "1",
-      players: [{ id: "1", firstName: "John", lastName: "Smith" }],
+      players: [createPlayer(1, "John", "Smith")],
       eventId: "1",
       seed: 1,
       name: "Team Alpha",
     },
     {
       id: "2",
-      players: [{ id: "2", firstName: "Jane", lastName: "Doe" }],
+      players: [createPlayer(2, "Jane", "Doe")],
       eventId: "1",
       seed: 8,
       name: "Team Beta",

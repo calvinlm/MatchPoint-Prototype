@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import type { Team } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import { getPlayerDisplayName, getTeamDisplayName } from "@/lib/player"
 import { Trophy, TrendingUp, TrendingDown, Minus } from "lucide-react"
 
 interface StandingsEntry extends Team {
@@ -48,10 +49,15 @@ export function StandingsTable({ entries, eventName, className }: StandingsTable
         .toUpperCase()
         .slice(0, 2)
     }
-    return team.players
-      .map((p) => p.firstName[0])
+    const initials = team.players
+      .map((player) => {
+        const name = getPlayerDisplayName(player)
+        return name === "TBD" ? "" : name[0]?.toUpperCase() ?? ""
+      })
+      .filter(Boolean)
       .join("")
-      .toUpperCase()
+
+    return initials || "TM"
   }
 
   const getWinPercentage = (wins: number, losses: number) => {
@@ -101,11 +107,12 @@ export function StandingsTable({ entries, eventName, className }: StandingsTable
                         <AvatarFallback className="text-xs">{getTeamInitials(entry)}</AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="font-medium text-sm">
-                          {entry.name || `${entry.players[0]?.firstName} ${entry.players[0]?.lastName}`}
-                        </p>
+                        <p className="font-medium text-sm">{getTeamDisplayName(entry)}</p>
                         <p className="text-xs text-muted-foreground">
-                          {entry.players.map((p) => `${p.firstName} ${p.lastName}`).join(" & ")}
+                          {entry.players
+                            .map((player) => getPlayerDisplayName(player))
+                            .filter((name) => name !== "TBD")
+                            .join(" & ")}
                         </p>
                       </div>
                     </div>

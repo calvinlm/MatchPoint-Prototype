@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import type { UserRole, Player, Team } from "@/lib/types"
+import { getPlayerDisplayName } from "@/lib/player"
 import {
   Search,
   UserPlus,
@@ -30,23 +31,28 @@ import {
 import { Label } from "@/components/ui/label"
 
 
+const createMockPlayer = (id: number, fullName: string): Player => {
+  const [firstName, ...rest] = fullName.split(" ")
+  const lastName = rest.join(" ")
+  return {
+    id,
+    name: fullName,
+    firstName,
+    lastName: lastName || undefined,
+  }
+}
+
 const mockTeams: (Team & { eventName?: string; seed?: number })[] = [
   {
     id: "1",
-    players: [
-      { id: "1", name: "John Smith" } as unknown as Player,
-      { id: "2", name: "Jane Doe" } as unknown as Player,
-    ],
+    players: [createMockPlayer(1, "John Smith"), createMockPlayer(2, "Jane Doe")],
     eventId: "1",
     eventName: "Men's Doubles",
     seed: 1,
   },
   {
     id: "2",
-    players: [
-      { id: "3", name: "Mike Johnson" } as unknown as Player,
-      { id: "4", name: "Sarah Wilson" } as unknown as Player,
-    ],
+    players: [createMockPlayer(3, "Mike Johnson"), createMockPlayer(4, "Sarah Wilson")],
     eventId: "2",
     eventName: "Women's Doubles",
     seed: 2,
@@ -169,12 +175,14 @@ async function handleEditSubmit(e: React.FormEvent) {
   setIsEditing(true)
   setEditError(null)
   try {
+    const normalizedName = getPlayerDisplayName(editTarget)
+
     const payload = {
-      name: editTarget.name.trim(),
-      gender: (editTarget.gender ?? "").toUpperCase(),
-      age: Number(editTarget.age),
-      contactNumber: editTarget.contactNumber.trim(),
-      address: editTarget.address.trim(),
+      name: normalizedName === "TBD" ? "" : normalizedName,
+      gender: (editTarget.gender ?? "").toUpperCase() || undefined,
+      age: typeof editTarget.age === "number" ? editTarget.age : undefined,
+      contactNumber: editTarget.contactNumber?.trim() || undefined,
+      address: editTarget.address?.trim() || undefined,
       checkedIn: !!editTarget.checkedIn,
     }
 

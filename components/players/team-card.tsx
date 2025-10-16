@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Users, Edit, Trash2, UserPlus } from "lucide-react"
 import type { Team } from "@/lib/types"
+import { getPlayerDisplayName } from "@/lib/player"
 
 interface TeamCardProps {
   team: Team & {
@@ -34,19 +35,21 @@ export function TeamCard({ team, onEdit, onDelete, onAddPlayer }: TeamCardProps)
         <div className="space-y-2">
           <div className="text-sm font-medium text-muted-foreground">Players</div>
           <div className="space-y-2">
-            {team.players.map((player) => (
-              <div key={player.id} className="flex items-center gap-3">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                    {player.name[0]}
-                    {player.name[0]}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="text-sm">
-                  {player.name}
-                </span>
-              </div>
-            ))}
+            {team.players.map((player) => {
+              const displayName = getPlayerDisplayName(player)
+              const initials = displayName === "TBD" ? "?" : displayName.slice(0, 2).toUpperCase()
+
+              return (
+                <div key={player.id} className="flex items-center gap-3">
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm">{displayName}</span>
+                </div>
+              )
+            })}
           </div>
         </div>
 

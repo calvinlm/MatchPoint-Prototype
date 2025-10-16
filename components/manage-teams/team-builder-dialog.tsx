@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { Player } from "@/lib/types"
+import { getPlayerDisplayName } from "@/lib/player"
 
 const AGE_GROUPS = ["Junior (17 below)", "18+", "35+", "55+"] as const
 const CATEGORIES = [
@@ -80,9 +81,9 @@ export function TeamBuilderDialog({
   // Reset form when dialog opens with editing team
   useState(() => {
     if (editingTeam && open) {
-      const player1 = players.find((p) => p.name === editingTeam.players[0])
+      const player1 = players.find((p) => getPlayerDisplayName(p) === editingTeam.players[0])
       const player2 = editingTeam.players[1]
-        ? players.find((p) => p.name === editingTeam.players[1])
+        ? players.find((p) => getPlayerDisplayName(p) === editingTeam.players[1])
         : null
 
       setFormData({
@@ -239,13 +240,18 @@ export function TeamBuilderDialog({
 
     if (!player1Data) return
 
+    const playerNames = [player1Data, player2Data]
+      .filter((player): player is Player => !!player)
+      .map((player) => getPlayerDisplayName(player))
+      .filter((name) => name !== "TBD")
+
     const newTeam: GeneratedTeam = {
-    id: editingTeam ? editingTeam.id : generateTeamId(),
-    ageGroup: formData.ageGroup,
-    category: formData.category,
-    level: formData.level,
-    players: player2Data ? [player1Data.name, player2Data.name] : [player1Data.name],
-    timestamp: Date.now(),
+      id: editingTeam ? editingTeam.id : generateTeamId(),
+      ageGroup: formData.ageGroup,
+      category: formData.category,
+      level: formData.level,
+      players: playerNames,
+      timestamp: Date.now(),
     }
 
     onSave(newTeam)

@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import type { QueueItem, Match, Court } from "@/lib/types"
+import { getTeamDisplayName } from "@/lib/player"
 import { cn } from "@/lib/utils"
 import {
   GripVertical,
@@ -56,10 +57,6 @@ export function QueueTable({
     if (filter === "needs_ref") return !item.match.refereeId
     return true
   })
-
-  const getTeamName = (team: any) => {
-    return team.name || `${team.players[0]?.firstName} ${team.players[0]?.lastName}` || "TBD"
-  }
 
   const getEstimatedTime = (priority: number) => {
     const baseTime = new Date()
@@ -201,7 +198,7 @@ export function QueueTable({
                       {isReady && <Badge className="bg-primary text-primary-foreground text-xs">Ready</Badge>}
                     </div>
                     <p className="text-sm font-medium truncate">
-                      {getTeamName(match.teams[0])} vs {getTeamName(match.teams[1])}
+                      {getTeamDisplayName(match.teams[0])} vs {getTeamDisplayName(match.teams[1])}
                     </p>
                     <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
                       <span className="flex items-center gap-1">

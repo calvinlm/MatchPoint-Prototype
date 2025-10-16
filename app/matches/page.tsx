@@ -6,10 +6,18 @@ import { LiveMatchCard } from "@/components/matches/live-match-card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import type { UserRole, Match } from "@/lib/types"
+import type { UserRole, Match, Player } from "@/lib/types"
+import { getPlayerDisplayName } from "@/lib/player"
 import { Play, Search, RefreshCw, Filter, Grid, List } from "lucide-react"
 
 // Mock live matches data
+const createPlayer = (id: number, firstName: string, lastName: string): Player => ({
+  id,
+  firstName,
+  lastName,
+  name: `${firstName} ${lastName}`,
+})
+
 const mockLiveMatches: (Match & { eventName: string; refereeName?: string; duration: string })[] = [
   {
     id: "1",
@@ -21,14 +29,14 @@ const mockLiveMatches: (Match & { eventName: string; refereeName?: string; durat
     teams: [
       {
         id: "1",
-        players: [{ id: "1", firstName: "John", lastName: "Smith" }],
+        players: [createPlayer(1, "John", "Smith")],
         eventId: "1",
         name: "Dynamic Duo",
         seed: 1,
       },
       {
         id: "2",
-        players: [{ id: "2", firstName: "Mike", lastName: "Johnson" }],
+        players: [createPlayer(2, "Mike", "Johnson")],
         eventId: "1",
         name: "Power Players",
         seed: 4,
@@ -54,14 +62,14 @@ const mockLiveMatches: (Match & { eventName: string; refereeName?: string; durat
     teams: [
       {
         id: "3",
-        players: [{ id: "3", firstName: "Emma", lastName: "White" }],
+        players: [createPlayer(3, "Emma", "White")],
         eventId: "2",
         name: "Mixed Masters",
         seed: 2,
       },
       {
         id: "4",
-        players: [{ id: "4", firstName: "Chris", lastName: "Davis" }],
+        players: [createPlayer(4, "Chris", "Davis")],
         eventId: "2",
         name: "Court Crushers",
         seed: 3,
@@ -85,14 +93,14 @@ const mockLiveMatches: (Match & { eventName: string; refereeName?: string; durat
     teams: [
       {
         id: "5",
-        players: [{ id: "5", firstName: "Lisa", lastName: "Garcia" }],
+        players: [createPlayer(5, "Lisa", "Garcia")],
         eventId: "1",
         name: "Net Ninjas",
         seed: 6,
       },
       {
         id: "6",
-        players: [{ id: "6", firstName: "Ryan", lastName: "Taylor" }],
+        players: [createPlayer(6, "Ryan", "Taylor")],
         eventId: "1",
         name: "Court Kings",
         seed: 7,
@@ -126,9 +134,9 @@ export default function LiveMatchesPage() {
       match.teams.some(
         (team) =>
           team.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          team.players.some((player) =>
-            `${player.firstName} ${player.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()),
-          ),
+          team.players
+            .map((player) => getPlayerDisplayName(player).toLowerCase())
+            .some((name) => name.includes(searchTerm.toLowerCase())),
       )
 
     const matchesCourt = selectedCourt === "all" || match.courtId === selectedCourt

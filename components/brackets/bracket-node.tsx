@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import type { Match, Team } from "@/lib/types"
+import { getTeamDisplayName } from "@/lib/player"
 
 interface BracketNodeProps {
   match: Match
@@ -16,10 +17,6 @@ interface BracketNodeProps {
 export function BracketNode({ match, position, isWinner, onClick, className }: BracketNodeProps) {
   const teamA = match.teams[0]
   const teamB = match.teams[1]
-
-  const getTeamName = (team: Team) => {
-    return team.name || `${team.players[0]?.firstName} ${team.players[0]?.lastName}` || "TBD"
-  }
 
   const getTeamScore = (teamIndex: number) => {
     if (match.games.length === 0) return ""
@@ -69,7 +66,7 @@ export function BracketNode({ match, position, isWinner, onClick, className }: B
             >
               <div className="flex items-center gap-2">
                 {teamA.seed && <span className="text-xs text-muted-foreground">#{teamA.seed}</span>}
-                <span className="truncate">{getTeamName(teamA)}</span>
+                <span className="truncate">{getTeamDisplayName(teamA)}</span>
               </div>
               <span className="font-mono text-sm">{getTeamScore(0)}</span>
             </div>
@@ -83,7 +80,7 @@ export function BracketNode({ match, position, isWinner, onClick, className }: B
             >
               <div className="flex items-center gap-2">
                 {teamB.seed && <span className="text-xs text-muted-foreground">#{teamB.seed}</span>}
-                <span className="truncate">{getTeamName(teamB)}</span>
+                <span className="truncate">{getTeamDisplayName(teamB)}</span>
               </div>
               <span className="font-mono text-sm">{getTeamScore(1)}</span>
             </div>

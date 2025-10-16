@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import type { Match } from "@/lib/types"
+import { getTeamDisplayName } from "@/lib/player"
 import { cn } from "@/lib/utils"
 import { Contrast, QrCode, Settings } from "lucide-react"
 
@@ -36,10 +37,6 @@ export function CourtScoreboard({
 
   const teamAWins = match.games.filter((game) => game.scoreA > game.scoreB).length
   const teamBWins = match.games.filter((game) => game.scoreB > game.scoreA).length
-
-  const getTeamName = (team: any) => {
-    return team.name || `${team.players[0]?.firstName} ${team.players[0]?.lastName}` || "Team"
-  }
 
   // Auto-hide controls after 5 seconds
   useEffect(() => {
@@ -159,7 +156,7 @@ export function CourtScoreboard({
                 </Badge>
               )}
               <h2 className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight">
-                {getTeamName(match.teams[0])}
+                {getTeamDisplayName(match.teams[0])}
               </h2>
               <div className="text-6xl md:text-8xl lg:text-9xl font-bold font-mono">{currentGame.scoreA}</div>
               {currentGame.serving === "A" && (
@@ -227,7 +224,7 @@ export function CourtScoreboard({
                 </Badge>
               )}
               <h2 className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight">
-                {getTeamName(match.teams[1])}
+                {getTeamDisplayName(match.teams[1])}
               </h2>
               <div className="text-6xl md:text-8xl lg:text-9xl font-bold font-mono">{currentGame.scoreB}</div>
               {currentGame.serving === "B" && (

@@ -6,10 +6,24 @@ import { MatchCard } from "@/components/player/match-card"
 import { TeamCard } from "@/components/player/team-card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import type { UserRole } from "@/lib/types"
+import type { UserRole, Player, Team } from "@/lib/types"
 import { Trophy, Calendar, Users, Search, Plus } from "lucide-react"
 
 // Mock data for player
+const createPlayer = (id: number, firstName: string, lastName: string): Player => ({
+  id,
+  firstName,
+  lastName,
+  name: [firstName, lastName].filter(Boolean).join(" ") || firstName,
+})
+
+const createTeam = (id: string, players: Player[], eventId: string, extra?: Partial<Team>): Team => ({
+  id,
+  players,
+  eventId,
+  ...extra,
+})
+
 const mockUpcomingMatches = [
   {
     id: "1",
@@ -18,9 +32,9 @@ const mockUpcomingMatches = [
     round: 2,
     courtId: "2",
     teams: [
-      { id: "1", players: [{ id: "1", firstName: "You", lastName: "" }], eventId: "1" },
-      { id: "2", players: [{ id: "2", firstName: "Opponent", lastName: "Team" }], eventId: "1" },
-    ],
+      createTeam("1", [createPlayer(1, "You", "Player")], "1"),
+      createTeam("2", [createPlayer(2, "Opponent", "Team")], "1"),
+    ] as [Team, Team],
     status: "assigned" as const,
     games: [],
     eventName: "Men's Doubles 3.0",
@@ -37,9 +51,9 @@ const mockUpcomingMatches = [
     eventId: "2",
     round: 1,
     teams: [
-      { id: "3", players: [{ id: "1", firstName: "You", lastName: "" }], eventId: "2" },
-      { id: "4", players: [{ id: "4", firstName: "Another", lastName: "Team" }], eventId: "2" },
-    ],
+      createTeam("3", [createPlayer(1, "You", "Player")], "2"),
+      createTeam("4", [createPlayer(4, "Another", "Team")], "2"),
+    ] as [Team, Team],
     status: "queued" as const,
     games: [],
     eventName: "Mixed Doubles 3.5",
@@ -59,13 +73,13 @@ const mockCompletedMatches = [
     round: 1,
     courtId: "1",
     teams: [
-      { id: "1", players: [{ id: "1", firstName: "You", lastName: "" }], eventId: "1" },
-      { id: "5", players: [{ id: "5", firstName: "Previous", lastName: "Opponent" }], eventId: "1" },
-    ],
+      createTeam("1", [createPlayer(1, "You", "Player")], "1"),
+      createTeam("5", [createPlayer(5, "Previous", "Opponent")], "1"),
+    ] as [Team, Team],
     status: "completed" as const,
     games: [
-      { seq: 1, scoreA: 11, scoreB: 7, serving: "A", timeoutsA: 1, timeoutsB: 0 },
-      { seq: 2, scoreA: 11, scoreB: 9, serving: "B", timeoutsA: 0, timeoutsB: 2 },
+      { seq: 1, scoreA: 11, scoreB: 7, serving: "A" as const, timeoutsA: 1, timeoutsB: 0 },
+      { seq: 2, scoreA: 11, scoreB: 9, serving: "B" as const, timeoutsA: 0, timeoutsB: 2 },
     ],
     winnerTeamId: "1",
     endedAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // Yesterday
@@ -82,8 +96,8 @@ const mockTeams = [
   {
     id: "1",
     players: [
-      { id: "1", firstName: "You", lastName: "Player" },
-      { id: "2", firstName: "Your", lastName: "Partner" },
+      createPlayer(1, "You", "Player"),
+      createPlayer(2, "Your", "Partner"),
     ],
     eventId: "1",
     name: "Dynamic Duo",
@@ -95,8 +109,8 @@ const mockTeams = [
   {
     id: "2",
     players: [
-      { id: "1", firstName: "You", lastName: "Player" },
-      { id: "3", firstName: "Another", lastName: "Partner" },
+      createPlayer(1, "You", "Player"),
+      createPlayer(3, "Another", "Partner"),
     ],
     eventId: "2",
     name: "Mixed Masters",

@@ -8,10 +8,18 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import type { UserRole, Match } from "@/lib/types"
+import type { UserRole, Match, Player } from "@/lib/types"
+import { getPlayerDisplayName } from "@/lib/player"
 import { Search, FileText, Download, Printer } from "lucide-react"
 
 // Mock data for demonstration
+const createPlayer = (id: number, firstName: string, lastName: string): Player => ({
+  id,
+  firstName,
+  lastName,
+  name: `${firstName} ${lastName}`,
+})
+
 const mockMatches: Match[] = [
   {
     id: "1",
@@ -19,14 +27,14 @@ const mockMatches: Match[] = [
     eventId: "1",
     round: 1,
     teams: [
-      { id: "1", players: [{ id: "1", firstName: "John", lastName: "Smith" }], eventId: "1" },
-      { id: "2", players: [{ id: "2", firstName: "Jane", lastName: "Doe" }], eventId: "1" },
+      { id: "1", players: [createPlayer(1, "John", "Smith")], eventId: "1" },
+      { id: "2", players: [createPlayer(2, "Jane", "Doe")], eventId: "1" },
     ],
     status: "completed",
     games: [
-      { id: "1", matchId: "1", gameNumber: 1, team1Score: 11, team2Score: 8, isComplete: true },
-      { id: "2", matchId: "1", gameNumber: 2, team1Score: 9, team2Score: 11, isComplete: true },
-      { id: "3", matchId: "1", gameNumber: 3, team1Score: 11, team2Score: 6, isComplete: true },
+      { seq: 1, scoreA: 11, scoreB: 8, serving: "A", timeoutsA: 1, timeoutsB: 1 },
+      { seq: 2, scoreA: 9, scoreB: 11, serving: "B", timeoutsA: 1, timeoutsB: 1 },
+      { seq: 3, scoreA: 11, scoreB: 6, serving: "A", timeoutsA: 2, timeoutsB: 2 },
     ],
   },
   {
@@ -35,11 +43,11 @@ const mockMatches: Match[] = [
     eventId: "1",
     round: 1,
     teams: [
-      { id: "3", players: [{ id: "3", firstName: "Mike", lastName: "Johnson" }], eventId: "1" },
-      { id: "4", players: [{ id: "4", firstName: "Sarah", lastName: "Wilson" }], eventId: "1" },
+      { id: "3", players: [createPlayer(3, "Mike", "Johnson")], eventId: "1" },
+      { id: "4", players: [createPlayer(4, "Sarah", "Wilson")], eventId: "1" },
     ],
     status: "live",
-    games: [{ id: "4", matchId: "2", gameNumber: 1, team1Score: 8, team2Score: 6, isComplete: false }],
+    games: [{ seq: 1, scoreA: 8, scoreB: 6, serving: "A", timeoutsA: 0, timeoutsB: 1 }],
   },
   {
     id: "3",
@@ -47,8 +55,8 @@ const mockMatches: Match[] = [
     eventId: "2",
     round: 1,
     teams: [
-      { id: "5", players: [{ id: "5", firstName: "Alex", lastName: "Brown" }], eventId: "2" },
-      { id: "6", players: [{ id: "6", firstName: "Emma", lastName: "Davis" }], eventId: "2" },
+      { id: "5", players: [createPlayer(5, "Alex", "Brown")], eventId: "2" },
+      { id: "6", players: [createPlayer(6, "Emma", "Davis")], eventId: "2" },
     ],
     status: "queued",
     games: [],
@@ -65,9 +73,9 @@ export default function ScoreSheetsPage() {
     const matchesSearch =
       match.number.toString().includes(searchTerm) ||
       match.teams.some((team) =>
-        team.players.some((player) =>
-          `${player.firstName} ${player.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()),
-        ),
+        team.players
+          .map((player) => getPlayerDisplayName(player).toLowerCase())
+          .some((name) => name.includes(searchTerm.toLowerCase())),
       )
 
     const matchesStatus = statusFilter === "all" || match.status === statusFilter

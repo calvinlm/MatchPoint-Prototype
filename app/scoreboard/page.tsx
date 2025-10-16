@@ -2,9 +2,16 @@
 
 import { useState } from "react"
 import { CourtScoreboard } from "@/components/scoreboard/court-scoreboard"
-import type { Match } from "@/lib/types"
+import type { Match, Player } from "@/lib/types"
 
 // Mock live match data
+const createPlayer = (id: number, firstName: string, lastName: string): Player => ({
+  id,
+  firstName,
+  lastName,
+  name: `${firstName} ${lastName}`,
+})
+
 const mockMatch: Match = {
   id: "1",
   number: 101,
@@ -15,14 +22,14 @@ const mockMatch: Match = {
   teams: [
     {
       id: "1",
-      players: [{ id: "1", firstName: "John", lastName: "Smith" }],
+      players: [createPlayer(1, "John", "Smith")],
       eventId: "1",
       seed: 1,
       name: "Team Alpha",
     },
     {
       id: "2",
-      players: [{ id: "2", firstName: "Jane", lastName: "Doe" }],
+      players: [createPlayer(2, "Jane", "Doe")],
       eventId: "1",
       seed: 4,
       name: "Team Beta",

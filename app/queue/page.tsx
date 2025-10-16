@@ -7,7 +7,7 @@ import { CourtsGrid } from "@/components/queue/courts-grid"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import type { UserRole, Court, Match, QueueItem } from "@/lib/types"
+import type { UserRole, Court, Match, QueueItem, Player } from "@/lib/types"
 import { RefreshCw, Filter, Plus } from "lucide-react"
 
 // Mock data
@@ -18,6 +18,13 @@ const mockCourts: Court[] = [
   { id: "4", name: "Court 4", location: "Side Courts", status: "idle" },
 ]
 
+const createPlayer = (id: number, firstName: string, lastName: string): Player => ({
+  id,
+  firstName,
+  lastName,
+  name: `${firstName} ${lastName}`,
+})
+
 const mockMatches: Match[] = [
   {
     id: "1",
@@ -27,8 +34,8 @@ const mockMatches: Match[] = [
     courtId: "1",
     refereeId: "ref1",
     teams: [
-      { id: "1", players: [{ id: "1", firstName: "John", lastName: "Smith" }], eventId: "1", seed: 1 },
-      { id: "2", players: [{ id: "2", firstName: "Jane", lastName: "Doe" }], eventId: "1", seed: 8 },
+      { id: "1", players: [createPlayer(1, "John", "Smith")], eventId: "1", seed: 1 },
+      { id: "2", players: [createPlayer(2, "Jane", "Doe")], eventId: "1", seed: 8 },
     ],
     status: "live",
     games: [{ seq: 1, scoreA: 7, scoreB: 5, serving: "A", timeoutsA: 0, timeoutsB: 1 }],
@@ -39,8 +46,8 @@ const mockMatches: Match[] = [
     eventId: "1",
     round: 1,
     teams: [
-      { id: "3", players: [{ id: "3", firstName: "Mike", lastName: "Johnson" }], eventId: "1", seed: 2 },
-      { id: "4", players: [{ id: "4", firstName: "Sarah", lastName: "Wilson" }], eventId: "1", seed: 7 },
+      { id: "3", players: [createPlayer(3, "Mike", "Johnson")], eventId: "1", seed: 2 },
+      { id: "4", players: [createPlayer(4, "Sarah", "Wilson")], eventId: "1", seed: 7 },
     ],
     status: "queued",
     games: [],
@@ -52,8 +59,8 @@ const mockMatches: Match[] = [
     round: 1,
     refereeId: "ref2",
     teams: [
-      { id: "5", players: [{ id: "5", firstName: "Chris", lastName: "Brown" }], eventId: "1", seed: 3 },
-      { id: "6", players: [{ id: "6", firstName: "Lisa", lastName: "Davis" }], eventId: "1", seed: 6 },
+      { id: "5", players: [createPlayer(5, "Chris", "Brown")], eventId: "1", seed: 3 },
+      { id: "6", players: [createPlayer(6, "Lisa", "Davis")], eventId: "1", seed: 6 },
     ],
     status: "queued",
     games: [],
@@ -64,8 +71,8 @@ const mockMatches: Match[] = [
     eventId: "1",
     round: 1,
     teams: [
-      { id: "7", players: [{ id: "7", firstName: "Alex", lastName: "Miller" }], eventId: "1", seed: 4 },
-      { id: "8", players: [{ id: "8", firstName: "Emma", lastName: "Taylor" }], eventId: "1", seed: 5 },
+      { id: "7", players: [createPlayer(7, "Alex", "Miller")], eventId: "1", seed: 4 },
+      { id: "8", players: [createPlayer(8, "Emma", "Taylor")], eventId: "1", seed: 5 },
     ],
     status: "queued",
     games: [],
