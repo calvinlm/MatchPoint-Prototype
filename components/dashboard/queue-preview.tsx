@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import type { QueueItem, Match } from "@/lib/types"
+import { getTeamDisplayName } from "@/lib/player"
 import { Clock, Users, ArrowRight } from "lucide-react"
 
 interface QueuePreviewProps {
@@ -43,8 +44,7 @@ export function QueuePreview({ queueItems, onViewFullQueue, onAssignToCourt }: Q
                 <div>
                   <p className="font-medium text-sm text-foreground">Match #{item.match.number}</p>
                   <p className="text-xs text-muted-foreground">
-                    {item.match.teams[0].name || `Team ${item.match.teams[0].players[0]?.firstName}`} vs{" "}
-                    {item.match.teams[1].name || `Team ${item.match.teams[1].players[0]?.firstName}`}
+                    {getTeamDisplayName(item.match.teams[0])} vs {getTeamDisplayName(item.match.teams[1])}
                   </p>
                 </div>
               </div>

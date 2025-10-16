@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { FileText, Download, Printer, Eye } from "lucide-react"
 import type { Match } from "@/lib/types"
+import { getPlayerDisplayName } from "@/lib/player"
 
 interface ScoreSheetCardProps {
   match: Match
@@ -45,7 +46,10 @@ export function ScoreSheetCard({ match, onPrint, onDownload, onPreview }: ScoreS
             {match.teams.map((team, index) => (
               <div key={team.id} className="text-sm">
                 <span className="font-medium">Team {index + 1}:</span>{" "}
-                {team.players.map((p) => `${p.firstName} ${p.lastName}`).join(", ")}
+                {team.players
+                  .map((player) => getPlayerDisplayName(player))
+                  .filter((name) => name !== "TBD")
+                  .join(", ")}
               </div>
             ))}
           </div>
@@ -57,7 +61,7 @@ export function ScoreSheetCard({ match, onPrint, onDownload, onPreview }: ScoreS
             <div className="text-sm font-medium">
               {match.games.map((game, index) => (
                 <span key={index} className="mr-2">
-                  Game {index + 1}: {game.team1Score}-{game.team2Score}
+                  Game {index + 1}: {game.scoreA}-{game.scoreB}
                 </span>
               ))}
             </div>

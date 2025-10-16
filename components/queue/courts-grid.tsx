@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { Court, Match, QueueItem } from "@/lib/types"
+import { getTeamDisplayName } from "@/lib/player"
 import { cn } from "@/lib/utils"
 import { MapPin, Play, Pause, Sparkles, Clock, Monitor, UserCheck, AlertCircle } from "lucide-react"
 
@@ -55,10 +56,6 @@ export function CourtsGrid({
 
   const getAssignedMatch = (courtId: string) => {
     return matches.find((match) => match.courtId === courtId)
-  }
-
-  const getTeamName = (team: any) => {
-    return team.name || `${team.players[0]?.firstName} ${team.players[0]?.lastName}` || "TBD"
   }
 
   const availableMatches = queueItems.filter((item) => !item.match.courtId)
@@ -142,7 +139,7 @@ export function CourtsGrid({
                             <span className="text-xs text-muted-foreground">Round {assignedMatch.round}</span>
                           </div>
                           <p className="font-medium text-sm">
-                            {getTeamName(assignedMatch.teams[0])} vs {getTeamName(assignedMatch.teams[1])}
+                            {getTeamDisplayName(assignedMatch.teams[0])} vs {getTeamDisplayName(assignedMatch.teams[1])}
                           </p>
                           <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
                             {assignedMatch.refereeId ? (
@@ -196,8 +193,8 @@ export function CourtsGrid({
                             <SelectContent>
                               {availableMatches.slice(0, 5).map((item) => (
                                 <SelectItem key={item.match.id} value={item.match.id}>
-                                  Match #{item.match.number} - {getTeamName(item.match.teams[0])} vs{" "}
-                                  {getTeamName(item.match.teams[1])}
+                                  Match #{item.match.number} - {getTeamDisplayName(item.match.teams[0])} vs{" "}
+                                  {getTeamDisplayName(item.match.teams[1])}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -232,7 +229,7 @@ export function CourtsGrid({
                     #{item.match.number}
                   </Badge>
                   <span className="text-sm flex-1 truncate">
-                    {getTeamName(item.match.teams[0])} vs {getTeamName(item.match.teams[1])}
+                    {getTeamDisplayName(item.match.teams[0])} vs {getTeamDisplayName(item.match.teams[1])}
                   </span>
                   <span className="text-xs text-muted-foreground">Priority {item.priority}</span>
                 </div>

@@ -10,12 +10,20 @@ export interface User {
 
 export interface Player {
   id: number
-  name: string
-  age: number
-  gender: "MALE" | "FEMALE"
-  address: string
-  contactNumber: string
-  createdAt: string
+  /**
+   * Legacy full name field returned by the backend. Optional for forward
+   * compatibility with split first/last name fields.
+   */
+  name?: string
+  firstName?: string
+  lastName?: string
+  displayName?: string
+  age?: number
+  gender?: "MALE" | "FEMALE"
+  address?: string
+  contactNumber?: string
+  rating?: number
+  createdAt?: string
   checkedIn?: boolean
 }
 

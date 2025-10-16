@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import type { Match } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import { getPlayerDisplayName, getTeamDisplayName } from "@/lib/player"
 import { MapPin, Clock, User, Eye, Gamepad2, AlertCircle } from "lucide-react"
 
 interface LiveMatchCardProps {
@@ -29,11 +30,6 @@ export function LiveMatchCard({
   const currentGame = match.games[match.games.length - 1]
   const gameNumber = match.games.length
   const bestOf = 3 // This would come from event settings
-
-  const getTeamName = (teamIndex: number) => {
-    const team = match.teams[teamIndex]
-    return team?.name || `${team?.players[0]?.firstName} ${team?.players[0]?.lastName}` || `Team ${teamIndex + 1}`
-  }
 
   const getMatchProgress = () => {
     const completedGames = match.games.filter((g) => g.scoreA >= 11 || g.scoreB >= 11).length
@@ -82,9 +78,12 @@ export function LiveMatchCard({
                 )}
               />
               <div>
-                <p className="font-medium text-sm">{getTeamName(0)}</p>
+                <p className="font-medium text-sm">{getTeamDisplayName(match.teams[0])}</p>
                 <p className="text-xs text-muted-foreground">
-                  {match.teams[0]?.players.map((p) => `${p.firstName} ${p.lastName}`).join(" & ")}
+                  {match.teams[0]
+                    ?.players.map((player) => getPlayerDisplayName(player))
+                    .filter((name) => name !== "TBD")
+                    .join(" & ")}
                 </p>
               </div>
             </div>
@@ -104,9 +103,12 @@ export function LiveMatchCard({
                 )}
               />
               <div>
-                <p className="font-medium text-sm">{getTeamName(1)}</p>
+                <p className="font-medium text-sm">{getTeamDisplayName(match.teams[1])}</p>
                 <p className="text-xs text-muted-foreground">
-                  {match.teams[1]?.players.map((p) => `${p.firstName} ${p.lastName}`).join(" & ")}
+                  {match.teams[1]
+                    ?.players.map((player) => getPlayerDisplayName(player))
+                    .filter((name) => name !== "TBD")
+                    .join(" & ")}
                 </p>
               </div>
             </div>

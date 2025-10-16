@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import type { Team, Game } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import { getPlayerDisplayName, getTeamDisplayName } from "@/lib/player"
 import { Plus, Minus, Zap, Clock } from "lucide-react"
 
 interface TeamScoreCardProps {
@@ -36,12 +37,11 @@ export function TeamScoreCard({
   const timeouts = side === "A" ? currentGame.timeoutsA : currentGame.timeoutsB
   const maxTimeouts = 2 // Standard pickleball rule
 
-  const getTeamName = () => {
-    return team.name || `${team.players[0]?.firstName} ${team.players[0]?.lastName}` || "Team"
-  }
-
   const getPlayerNames = () => {
-    return team.players.map((p) => `${p.firstName} ${p.lastName}`).join(" & ")
+    return team.players
+      .map((player) => getPlayerDisplayName(player))
+      .filter((name) => name !== "TBD")
+      .join(" & ")
   }
 
   return (
@@ -62,7 +62,7 @@ export function TeamScoreCard({
                 #{team.seed}
               </Badge>
             )}
-            <h3 className="font-bold text-lg">{getTeamName()}</h3>
+            <h3 className="font-bold text-lg">{getTeamDisplayName(team)}</h3>
           </div>
           <p className="text-sm text-muted-foreground">{getPlayerNames()}</p>
 

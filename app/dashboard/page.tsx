@@ -7,7 +7,7 @@ import { QueuePreview } from "@/components/dashboard/queue-preview"
 import { AlertsPanel } from "@/components/dashboard/alerts-panel"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import type { UserRole, Court, Match } from "@/lib/types"
+import type { UserRole, Court, Match, Player } from "@/lib/types"
 import { Trophy, Users, Play, CheckCircle, Plus, UserPlus, MoreHorizontal } from "lucide-react"
 
 // Mock data for demonstration
@@ -18,6 +18,13 @@ const mockCourts: Court[] = [
   { id: "4", name: "Court 4", location: "Side Courts", status: "hold" },
 ]
 
+const createPlayer = (id: number, firstName: string, lastName: string): Player => ({
+  id,
+  firstName,
+  lastName,
+  name: `${firstName} ${lastName}`,
+})
+
 const mockMatches: Match[] = [
   {
     id: "1",
@@ -25,8 +32,8 @@ const mockMatches: Match[] = [
     eventId: "1",
     round: 1,
     teams: [
-      { id: "1", players: [{ id: "1", firstName: "John", lastName: "Smith" }], eventId: "1" },
-      { id: "2", players: [{ id: "2", firstName: "Jane", lastName: "Doe" }], eventId: "1" },
+      { id: "1", players: [createPlayer(1, "John", "Smith")], eventId: "1" },
+      { id: "2", players: [createPlayer(2, "Jane", "Doe")], eventId: "1" },
     ],
     status: "live",
     games: [],
@@ -37,8 +44,8 @@ const mockMatches: Match[] = [
     eventId: "1",
     round: 1,
     teams: [
-      { id: "3", players: [{ id: "3", firstName: "Mike", lastName: "Johnson" }], eventId: "1" },
-      { id: "4", players: [{ id: "4", firstName: "Sarah", lastName: "Wilson" }], eventId: "1" },
+      { id: "3", players: [createPlayer(3, "Mike", "Johnson")], eventId: "1" },
+      { id: "4", players: [createPlayer(4, "Sarah", "Wilson")], eventId: "1" },
     ],
     status: "queued",
     games: [],

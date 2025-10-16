@@ -83,7 +83,13 @@ export function GameSelector({
 
         {/* Add New Game Button */}
         {canAddGame && (
-          <Button variant="dashed" size="sm" onClick={onNewGame} disabled={disabled} className="min-w-20 border-dashed">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onNewGame}
+            disabled={disabled}
+            className="min-w-20 border-dashed"
+          >
             <div className="text-center">
               <div className="text-xs">Game {games.length + 1}</div>
               <div className="text-xs text-muted-foreground">New</div>

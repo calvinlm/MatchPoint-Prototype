@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import type { Team } from "@/lib/types"
+import { getPlayerDisplayName } from "@/lib/player"
 import { Users, Trophy, Calendar, MoreHorizontal } from "lucide-react"
 
 interface TeamCardProps {
@@ -46,21 +47,24 @@ export function TeamCard({ team, onViewMatches, onManageTeam }: TeamCardProps) {
             Players
           </h4>
           <div className="space-y-2">
-            {team.players.map((player, index) => (
-              <div key={player.id} className="flex items-center gap-3">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="text-xs">
-                    {getInitials(`${player.firstName} ${player.lastName}`)}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="text-sm font-medium">
-                    {player.firstName} {player.lastName}
-                  </p>
-                  {player.rating && <p className="text-xs text-muted-foreground">Rating: {player.rating}</p>}
+            {team.players.map((player, index) => {
+              const displayName = getPlayerDisplayName(player)
+              const initialsSource = displayName === "TBD" ? player.name ?? "?" : displayName
+
+              return (
+                <div key={player.id} className="flex items-center gap-3">
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback className="text-xs">
+                      {getInitials(initialsSource)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="text-sm font-medium">{displayName}</p>
+                    {player.rating && <p className="text-xs text-muted-foreground">Rating: {player.rating}</p>}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
 

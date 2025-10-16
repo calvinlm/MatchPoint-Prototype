@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import type { Court, Match } from "@/lib/types"
+import { getTeamDisplayName } from "@/lib/player"
 import { Play, Pause, Sparkles } from "lucide-react"
 
 interface CourtCardProps {
@@ -60,8 +61,7 @@ export function CourtCard({ court, assignedMatch, onAssignMatch, onViewScoreboar
             <div className="text-sm">
               <p className="font-medium text-foreground">Match #{assignedMatch.number}</p>
               <p className="text-muted-foreground">
-                {assignedMatch.teams[0].name || `Team ${assignedMatch.teams[0].players[0]?.firstName}`} vs{" "}
-                {assignedMatch.teams[1].name || `Team ${assignedMatch.teams[1].players[0]?.firstName}`}
+                {getTeamDisplayName(assignedMatch.teams[0])} vs {getTeamDisplayName(assignedMatch.teams[1])}
               </p>
             </div>
             <div className="flex gap-2">
