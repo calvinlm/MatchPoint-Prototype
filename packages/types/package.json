@@ -1,0 +1,43 @@
+{
+  "name": "@matchpoint/types",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./index.js",
+      "types": "./index.d.ts"
+    },
+    "./enums": {
+      "import": "./enums.js",
+      "types": "./enums.d.ts"
+    },
+    "./player": {
+      "import": "./player.js",
+      "types": "./player.d.ts"
+    },
+    "./team": {
+      "import": "./team.js",
+      "types": "./team.d.ts"
+    },
+    "./queue": {
+      "import": "./queue.js",
+      "types": "./queue.d.ts"
+    },
+    "./match": {
+      "import": "./match.js",
+      "types": "./match.d.ts"
+    },
+    "./public": {
+      "import": "./public.js",
+      "types": "./public.d.ts"
+    },
+    "./auth": {
+      "import": "./auth.js",
+      "types": "./auth.d.ts"
+    }
+  },
+  "dependencies": {
+    "zod": "3.25.67"
+  }
+}

@@ -46,7 +46,7 @@ export function TeamCard({ team, onViewMatches, onManageTeam }: TeamCardProps) {
             Players
           </h4>
           <div className="space-y-2">
-            {team.players.map((player, index) => (
+            {team.players.map((player) => (
               <div key={player.id} className="flex items-center gap-3">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="text-xs">

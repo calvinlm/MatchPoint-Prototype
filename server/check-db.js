@@ -36,9 +36,11 @@ function printSection(title) {
     `)
     console.table(tables)
 
-    // Does Category exist?
+    // Expect new Division table, legacy Category should be gone
     const hasCategory = tables.some((t) => t.table_name === 'Category')
-    console.log(`\nCategory table present?`, hasCategory ? 'YES ❌ (should be removed)' : 'NO ✅')
+    const hasDivision = tables.some((t) => t.table_name === 'Division')
+    console.log(`\nCategory table present?`, hasCategory ? 'YES ❌ (remove via migration)' : 'NO ✅')
+    console.log(`Division table present?`, hasDivision ? 'YES ✅' : 'NO ❌')
 
     // Columns for Team
     printSection('Team columns')
@@ -74,20 +76,20 @@ function printSection(title) {
       def: r.indexdef
     })))
 
-    // Enums (AgeBracket, Division, Level, Gender)
+    // Enums (AgeGroup, DivisionType, Level, Gender)
     printSection('Enum values')
     const enums = await query(`
       SELECT t.typname AS enum_type, e.enumlabel AS value
       FROM pg_type t
       JOIN pg_enum e ON t.oid = e.enumtypid
-      WHERE t.typname IN ('AgeBracket','Division','Level','Gender')
+      WHERE t.typname IN ('AgeGroup','DivisionType','Level','Gender')
       ORDER BY t.typname, e.enumsortorder;
     `)
     console.table(enums)
 
     // Quick expectations
     printSection('Expected model checks')
-    const expectedTeamCols = ['id','code','age','division','level','createdAt','updatedAt']
+    const expectedTeamCols = ['id','code','tournamentId','age','division','level','createdAt','updatedAt']
     const teamColNames = new Set(teamCols.map(c => c.column_name))
     const missing = expectedTeamCols.filter(c => !teamColNames.has(c))
     const extra   = [...teamColNames].filter(c => !expectedTeamCols.includes(c))

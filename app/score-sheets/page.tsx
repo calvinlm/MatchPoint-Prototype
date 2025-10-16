@@ -2,17 +2,17 @@
 
 import { useState } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
-import { ScoreSheetCard } from "@/components/score-sheets/score-sheet-card"
+import { ScoreSheetCard, type ScoreSheetMatch } from "@/components/score-sheets/score-sheet-card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import type { UserRole, Match } from "@/lib/types"
+import type { UserRole } from "@/lib/types"
 import { Search, FileText, Download, Printer } from "lucide-react"
 
 // Mock data for demonstration
-const mockMatches: Match[] = [
+const mockMatches: ScoreSheetMatch[] = [
   {
     id: "1",
     number: 101,
@@ -24,9 +24,9 @@ const mockMatches: Match[] = [
     ],
     status: "completed",
     games: [
-      { id: "1", matchId: "1", gameNumber: 1, team1Score: 11, team2Score: 8, isComplete: true },
-      { id: "2", matchId: "1", gameNumber: 2, team1Score: 9, team2Score: 11, isComplete: true },
-      { id: "3", matchId: "1", gameNumber: 3, team1Score: 11, team2Score: 6, isComplete: true },
+      { seq: 1, scoreA: 11, scoreB: 8, serving: "A", timeoutsA: 0, timeoutsB: 0 },
+      { seq: 2, scoreA: 9, scoreB: 11, serving: "B", timeoutsA: 0, timeoutsB: 0 },
+      { seq: 3, scoreA: 11, scoreB: 6, serving: "A", timeoutsA: 0, timeoutsB: 0 },
     ],
   },
   {
@@ -39,7 +39,7 @@ const mockMatches: Match[] = [
       { id: "4", players: [{ id: "4", firstName: "Sarah", lastName: "Wilson" }], eventId: "1" },
     ],
     status: "live",
-    games: [{ id: "4", matchId: "2", gameNumber: 1, team1Score: 8, team2Score: 6, isComplete: false }],
+    games: [{ seq: 1, scoreA: 8, scoreB: 6, serving: "A", timeoutsA: 0, timeoutsB: 0 }],
   },
   {
     id: "3",
@@ -148,8 +148,8 @@ export default function ScoreSheetsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Events</SelectItem>
-              <SelectItem value="1">Men's Singles</SelectItem>
-              <SelectItem value="2">Women's Doubles</SelectItem>
+              <SelectItem value="1">Men&apos;s Singles</SelectItem>
+              <SelectItem value="2">Women&apos;s Doubles</SelectItem>
             </SelectContent>
           </Select>
         </div>

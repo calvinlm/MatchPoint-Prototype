@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { X } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -21,7 +20,7 @@ import {
 } from "@/components/ui/select"
 import type { Player } from "@/lib/types"
 
-const AGE_GROUPS = ["Junior (17 below)", "18+", "35+", "55+"] as const
+const AGE_GROUPS = ["Junior (17 below)", "18+", "35+", "50+"] as const
 const CATEGORIES = [
   "Mens Singles",
   "Mens Doubles",
@@ -52,6 +51,13 @@ export type GeneratedTeam = {
   timestamp: number
 }
 
+export type TeamCreatePayload = {
+  ageGroup: AgeGroup
+  category: Category
+  level: Level
+  playerIds: number[]
+}
+
 type TeamBuilderDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -59,6 +65,7 @@ type TeamBuilderDialogProps = {
   onSave: (team: GeneratedTeam) => void
   editingTeam?: GeneratedTeam | null
   existingTeams?: GeneratedTeam[]
+  onCreate?: (payload: TeamCreatePayload) => Promise<GeneratedTeam>
 }
 
 export function TeamBuilderDialog({
@@ -68,6 +75,7 @@ export function TeamBuilderDialog({
   onSave,
   editingTeam,
   existingTeams = [],
+  onCreate,
 }: TeamBuilderDialogProps) {
   const [formData, setFormData] = useState<TeamFormData>({
     ageGroup: "18+",
@@ -106,6 +114,19 @@ export function TeamBuilderDialog({
 
   const isDoubles = formData.category.includes("Doubles")
 
+  function buildPayload(): TeamCreatePayload {
+    const ids = isDoubles
+      ? [Number(formData.player1), Number(formData.player2)]
+      : [Number(formData.player1)]
+    const playerIds = ids.filter((n) => Number.isFinite(n))
+    return {
+      ageGroup: formData.ageGroup,
+      category: formData.category,
+      level: formData.level,
+      playerIds,
+    }
+  }
+
   // Filter players based on age group and category
   const eligiblePlayers = useMemo(() => {
     return players.filter((player) => {
@@ -118,9 +139,9 @@ export function TeamBuilderDialog({
       } else if (formData.ageGroup === "18+") {
         ageMatch = age >= 18 && age < 35
       } else if (formData.ageGroup === "35+") {
-        ageMatch = age >= 35 && age < 55
-      } else if (formData.ageGroup === "55+") {
-        ageMatch = age >= 55
+        ageMatch = age >= 35 && age < 50
+      } else if (formData.ageGroup === "50+") {
+        ageMatch = age >= 50
       }
 
       if (!ageMatch) return false
@@ -160,96 +181,103 @@ export function TeamBuilderDialog({
         )
       }
     }
-
     return eligiblePlayers
   }
 
-  const codeMaps = {
-  age: (age: AgeGroup) => {
-    if (age === "Junior (17 below)") return "Jr"
-    if (age === "18+") return "18"
-    if (age === "35+") return "35"
-    return "55"
-  },
-  category: (cat: Category) => {
-    if (cat === "Mens Singles") return "MS"
-    if (cat === "Mens Doubles") return "MD"
-    if (cat === "Womens Singles") return "WS"
-    if (cat === "Womens Doubles") return "WD"
-    return "XD"
-  },
-  level: (lvl: Level) => (lvl === "Novice" ? "Nov" : lvl === "Intermediate" ? "Int" : "Adv"),
-}
 
-    const generateTeamId = (savedTeamsCount: number = 0) => {
-    const count = savedTeamsCount + 1
+
+  const codeMaps = {
+    age: (age: AgeGroup) => {
+      if (age === "Junior (17 below)") return "Jr"
+      if (age === "18+") return "18"
+      if (age === "35+") return "35"
+      return "50"
+    },
+    category: (cat: Category) => {
+      if (cat === "Mens Singles") return "MS"
+      if (cat === "Mens Doubles") return "MD"
+      if (cat === "Womens Singles") return "WS"
+      if (cat === "Womens Doubles") return "WD"
+      return "XD"
+    },
+    level: (lvl: Level) => (lvl === "Novice" ? "Nov" : lvl === "Intermediate" ? "Int" : "Adv"),
+  }
+
+  const generateTeamId = () => {
     const age = codeMaps.age(formData.ageGroup)
     const cat = codeMaps.category(formData.category)
     const lvl = codeMaps.level(formData.level)
     const prefix = `${age}${cat}${lvl}_` // e.g., 18MDInt_
-  // find existing with same prefix and compute max
+    // find existing with same prefix and compute max
     const maxSeq = existingTeams
-        .filter(t => t.id.startsWith(prefix))
-        .map(t => {
+      .filter(t => t.id.startsWith(prefix))
+      .map(t => {
         const n = parseInt(t.id.slice(prefix.length), 10)
         return Number.isFinite(n) ? n : 0
-        })
-        .reduce((a, b) => Math.max(a, b), 0)
+      })
+      .reduce((a, b) => Math.max(a, b), 0)
 
     const next = String(maxSeq + 1).padStart(3, "0")
-    return `${prefix}${next}`    
-    }
+    return `${prefix}${next}`
+  }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Validation
-    if (!formData.player1) {
-      alert("Please select at least one player")
-      return
-    }
 
-    if (isDoubles && !formData.player2) {
-      alert("Please select two players for doubles category")
-      return
-    }
+    // simple validation (existing)
+    if (!formData.player1) return alert("Please select at least one player")
+    if (isDoubles && !formData.player2) return alert("Please select two players for doubles category")
 
-    // Check for Mixed Doubles gender requirement
-    if (
-      formData.category === "Mixed Doubles" &&
-      formData.player1 &&
-      formData.player2
-    ) {
+
+    // Mixed doubles gender check (existing)
+    if (formData.category === "Mixed Doubles" && formData.player1 && formData.player2) {
       const p1 = players.find((p) => String(p.id) === formData.player1)
       const p2 = players.find((p) => String(p.id) === formData.player2)
       if (p1 && p2) {
         const g1 = String(p1.gender ?? "").toLowerCase()
         const g2 = String(p2.gender ?? "").toLowerCase()
-        if (g1 === g2) {
-          alert("Mixed Doubles requires one male and one female player")
-          return
-        }
+        if (g1 === g2) return alert("Mixed Doubles requires one male and one female player")
+      }
+    }
+
+
+    const payload = buildPayload()
+
+
+    // Preferred path: let parent do the API call and give us the canonical team
+    if (onCreate) {
+      try {
+        const created = await onCreate(payload)
+        onSave(created) // keep your existing state updates in parent
+        onOpenChange(false)
+        return
+      } catch (err: unknown) {
+        console.error("Create team failed", err)
+        const message = err instanceof Error && err.message ? err.message : "Failed to create team"
+        alert(message)
+        return
       }
     }
 
     const player1Data = players.find((p) => String(p.id) === formData.player1)
-    const player2Data = formData.player2
-      ? players.find((p) => String(p.id) === formData.player2)
-      : null
-
+    const player2Data = formData.player2 ? players.find((p) => String(p.id) === formData.player2) : null
     if (!player1Data) return
 
-    const newTeam: GeneratedTeam = {
-    id: editingTeam ? editingTeam.id : generateTeamId(),
-    ageGroup: formData.ageGroup,
-    category: formData.category,
-    level: formData.level,
-    players: player2Data ? [player1Data.name, player2Data.name] : [player1Data.name],
-    timestamp: Date.now(),
+
+    const localTeam: GeneratedTeam = {
+      id: editingTeam ? editingTeam.id : generateTeamId(),
+      ageGroup: formData.ageGroup,
+      category: formData.category,
+      level: formData.level,
+      players: player2Data ? [player1Data.name, player2Data.name] : [player1Data.name],
+      timestamp: Date.now(),
     }
 
-    onSave(newTeam)
+
+    onSave(localTeam)
     onOpenChange(false)
+
   }
 
   const handleFormChange = (field: keyof TeamFormData, value: string) => {
@@ -469,7 +497,7 @@ export function TeamBuilderDialog({
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               type="submit"
               className="w-full sm:w-auto"
               disabled={!formData.player1 || (isDoubles && !formData.player2)}

@@ -15,14 +15,38 @@ const mockMatch: Match = {
   teams: [
     {
       id: "1",
-      players: [{ id: "1", firstName: "John", lastName: "Smith" }],
+      players: [
+        {
+          id: 1,
+          name: "John Smith",
+          age: 30,
+          gender: "MALE",
+          address: "",
+          contactNumber: "",
+          createdAt: "2024-01-01T00:00:00Z",
+          firstName: "John",
+          lastName: "Smith",
+        },
+      ],
       eventId: "1",
       seed: 1,
       name: "Team Alpha",
     },
     {
       id: "2",
-      players: [{ id: "2", firstName: "Jane", lastName: "Doe" }],
+      players: [
+        {
+          id: 2,
+          name: "Jane Doe",
+          age: 28,
+          gender: "FEMALE",
+          address: "",
+          contactNumber: "",
+          createdAt: "2024-01-01T00:00:00Z",
+          firstName: "Jane",
+          lastName: "Doe",
+        },
+      ],
       eventId: "1",
       seed: 4,
       name: "Team Beta",

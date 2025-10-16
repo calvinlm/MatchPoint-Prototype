@@ -49,7 +49,7 @@ export function StandingsTable({ entries, eventName, className }: StandingsTable
         .slice(0, 2)
     }
     return team.players
-      .map((p) => p.firstName[0])
+      .map((p) => p.firstName?.[0] ?? "")
       .join("")
       .toUpperCase()
   }
@@ -105,7 +105,7 @@ export function StandingsTable({ entries, eventName, className }: StandingsTable
                           {entry.name || `${entry.players[0]?.firstName} ${entry.players[0]?.lastName}`}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {entry.players.map((p) => `${p.firstName} ${p.lastName}`).join(" & ")}
+                          {entry.players.map((p) => `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim()).join(" & ")}
                         </p>
                       </div>
                     </div>

@@ -13,14 +13,14 @@ enum Gender {
   FEMALE
 }
 
-enum AgeBracket {
-  JUNIOR // <=17
+enum AgeGroup {
+  JUNIOR // <= 17
   A18    // 18+
   A35    // 35+
-  A55    // 55+
+  A50    // 50+
 }
 
-enum Division {
+enum DivisionType {
   MS // Men's Singles
   MD // Men's Doubles
   WS // Women's Singles
@@ -32,7 +32,27 @@ enum Level {
   NOV // Novice
   INT // Intermediate
   ADV // Advanced
-  OPN // Open (keep if you’ll use it; otherwise safe to drop later)
+  OPN // Open
+}
+
+enum BracketFormat {
+  SINGLE_ELIM
+  DOUBLE_ELIM
+  ROUND_ROBIN
+}
+
+enum MatchStatus {
+  PENDING
+  READY
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum NotificationType {
+  INFO
+  UPDATE
+  ALERT
 }
 
 /* ===== CORE TABLES ===== */
@@ -49,17 +69,21 @@ model Player {
   teamMembers   TeamMember[]
 }
 
-/* Teams store their own bracket/division/level; code is the human-facing ID (e.g., 18MDInt_001) */
+/* Teams store their own discipline metadata; entry codes per division are handled via Registration. */
 model Team {
-  id         Int         @id @default(autoincrement())
-  code       String      @unique                   // e.g., 18MDInt_001
-  age        AgeBracket
-  division   Division
-  level      Level
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  id           Int           @id @default(autoincrement())
+  code         String        @unique                   // e.g., 18MDInt_001
+  tournamentId Int?
+  age          AgeGroup
+  division     DivisionType
+  level        Level
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
-  members    TeamMember[]
+  tournament    Tournament?    @relation(fields: [tournamentId], references: [id], onDelete: SetNull)
+  members       TeamMember[]
+  registrations Registration[]
+  standings     Standing[]
 
   @@index([age, division, level])
 }
@@ -76,4 +100,179 @@ model TeamMember {
   @@id([teamId, playerId])
   @@unique([teamId, slot])
   @@index([playerId])
+}
+
+model Tournament {
+  id                Int             @id @default(autoincrement())
+  slug              String          @unique
+  name              String
+  startDate         DateTime?
+  endDate           DateTime?
+  venue             String?
+  plannedCourtCount Int?
+  kioskToken        String?         @unique
+  isPublic          Boolean         @default(false)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  divisions      Division[]
+  courts         Court[]
+  brackets       Bracket[]
+  queueItems     QueueItem[]
+  notifications  Notification[]
+  publicSettings PublicSettings?
+  teams          Team[]
+  registrations  Registration[]
+  standings      Standing[]
+}
+
+model Division {
+  id           Int           @id @default(autoincrement())
+  tournamentId Int
+  name         String
+  ageGroup     AgeGroup
+  discipline   DivisionType
+  level        Level
+  format       String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  tournament    Tournament     @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  brackets      Bracket[]
+  registrations Registration[]
+
+  @@index([tournamentId, ageGroup, discipline, level])
+}
+
+model Registration {
+  id           Int        @id @default(autoincrement())
+  tournamentId Int
+  divisionId   Int
+  teamId       Int
+  entryCode    String
+  seedNote     String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  division   Division   @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  team       Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([divisionId, teamId])
+  @@unique([divisionId, entryCode])
+  @@index([tournamentId, entryCode])
+}
+
+model Court {
+  id           Int        @id @default(autoincrement())
+  tournamentId Int
+  label        String
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  matches    Match[]
+  queueItems QueueItem[]
+
+  @@unique([tournamentId, label])
+}
+
+model Bracket {
+  id           Int            @id @default(autoincrement())
+  tournamentId Int
+  divisionId   Int?
+  name         String?
+  type         BracketFormat
+  config       Json?
+  locked       Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  division   Division?  @relation(fields: [divisionId], references: [id], onDelete: SetNull)
+  matches    Match[]
+  standings  Standing[]
+
+  @@index([tournamentId, divisionId])
+}
+
+model Match {
+  id           Int         @id @default(autoincrement())
+  bracketId    Int
+  round        Int
+  matchNumber  Int
+  status       MatchStatus @default(PENDING)
+  scheduledAt  DateTime?
+  courtId      Int?
+  scoreJson    Json?
+  meta         Json?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  bracket Bracket @relation(fields: [bracketId], references: [id], onDelete: Cascade)
+  court   Court?  @relation(fields: [courtId], references: [id], onDelete: SetNull)
+  queueItems QueueItem[]
+}
+
+model QueueItem {
+  id           Int        @id @default(autoincrement())
+  tournamentId Int
+  matchId      Int
+  courtId      Int?
+  position     Int
+  version      Int        @default(1)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  match      Match      @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  court      Court?     @relation(fields: [courtId], references: [id], onDelete: SetNull)
+
+  @@unique([matchId])
+  @@index([tournamentId, position])
+}
+
+model Standing {
+  id            Int       @id @default(autoincrement())
+  tournamentId  Int
+  bracketId     Int
+  teamId        Int
+  wins          Int       @default(0)
+  losses        Int       @default(0)
+  pointsFor     Int       @default(0)
+  pointsAgainst Int       @default(0)
+  quotient      Decimal   @db.Decimal(10, 4)
+  rank          Int?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  bracket    Bracket    @relation(fields: [bracketId], references: [id], onDelete: Cascade)
+  team       Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([bracketId, teamId])
+  @@index([teamId])
+}
+
+model Notification {
+  id           Int              @id @default(autoincrement())
+  tournamentId Int
+  type         NotificationType
+  title        String
+  body         String?
+  read         Boolean          @default(false)
+  createdAt    DateTime         @default(now())
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+}
+
+model PublicSettings {
+  tournamentId Int     @id
+  isPublic     Boolean @default(false)
+  slug         String? @unique
+  seoMeta      Json?
+  updatedAt    DateTime @updatedAt
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 }

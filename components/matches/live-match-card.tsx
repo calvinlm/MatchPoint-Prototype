@@ -36,7 +36,6 @@ export function LiveMatchCard({
   }
 
   const getMatchProgress = () => {
-    const completedGames = match.games.filter((g) => g.scoreA >= 11 || g.scoreB >= 11).length
     return `Game ${gameNumber} of ${bestOf}`
   }
 

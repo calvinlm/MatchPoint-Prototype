@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import type { Court, Match, QueueItem } from "@/lib/types"
+import type { Court, Match, QueueItem, Team } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { MapPin, Play, Pause, Sparkles, Clock, Monitor, UserCheck, AlertCircle } from "lucide-react"
 
@@ -57,8 +57,11 @@ export function CourtsGrid({
     return matches.find((match) => match.courtId === courtId)
   }
 
-  const getTeamName = (team: any) => {
-    return team.name || `${team.players[0]?.firstName} ${team.players[0]?.lastName}` || "TBD"
+  const getTeamName = (team: Team) => {
+    if (team.name) return team.name
+    const primaryPlayer = team.players?.[0]
+    if (primaryPlayer?.name) return primaryPlayer.name
+    return "TBD"
   }
 
   const availableMatches = queueItems.filter((item) => !item.match.courtId)

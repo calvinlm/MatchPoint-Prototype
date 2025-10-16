@@ -9,15 +9,17 @@ import type { UserRole } from "@/lib/types"
 import { Trophy, Download, RefreshCw } from "lucide-react"
 
 // Mock standings data
+import { createMockPlayer } from "@/lib/mock-data"
+
+const player = (id: number, firstName: string, lastName: string, gender: "MALE" | "FEMALE" = "MALE") =>
+  createMockPlayer({ id, firstName, lastName, gender })
+
 const mockStandings = {
   "mens-doubles-30": [
     {
       id: "1",
       name: "Dynamic Duo",
-      players: [
-        { id: "1", firstName: "John", lastName: "Smith" },
-        { id: "2", firstName: "Mike", lastName: "Johnson" },
-      ],
+      players: [player(1, "John", "Smith"), player(2, "Mike", "Johnson")],
       eventId: "1",
       seed: 1,
       position: 1,
@@ -32,10 +34,7 @@ const mockStandings = {
     {
       id: "2",
       name: "Power Players",
-      players: [
-        { id: "3", firstName: "Sarah", lastName: "Wilson" },
-        { id: "4", firstName: "Tom", lastName: "Brown" },
-      ],
+      players: [player(3, "Sarah", "Wilson", "FEMALE"), player(4, "Tom", "Brown")],
       eventId: "1",
       seed: 2,
       position: 2,
@@ -50,10 +49,7 @@ const mockStandings = {
     {
       id: "3",
       name: "Court Kings",
-      players: [
-        { id: "5", firstName: "Chris", lastName: "Davis" },
-        { id: "6", firstName: "Alex", lastName: "Miller" },
-      ],
+      players: [player(5, "Chris", "Davis"), player(6, "Alex", "Miller")],
       eventId: "1",
       seed: 3,
       position: 3,
@@ -68,10 +64,7 @@ const mockStandings = {
     {
       id: "4",
       name: "Net Ninjas",
-      players: [
-        { id: "7", firstName: "Lisa", lastName: "Garcia" },
-        { id: "8", firstName: "Ryan", lastName: "Taylor" },
-      ],
+      players: [player(7, "Lisa", "Garcia", "FEMALE"), player(8, "Ryan", "Taylor")],
       eventId: "1",
       seed: 4,
       position: 4,
@@ -88,10 +81,7 @@ const mockStandings = {
     {
       id: "5",
       name: "Mixed Masters",
-      players: [
-        { id: "9", firstName: "Emma", lastName: "White" },
-        { id: "10", firstName: "Jake", lastName: "Anderson" },
-      ],
+      players: [player(9, "Emma", "White", "FEMALE"), player(10, "Jake", "Anderson")],
       eventId: "2",
       seed: 1,
       position: 1,
@@ -106,10 +96,7 @@ const mockStandings = {
     {
       id: "6",
       name: "Court Crushers",
-      players: [
-        { id: "11", firstName: "Maya", lastName: "Patel" },
-        { id: "12", firstName: "David", lastName: "Lee" },
-      ],
+      players: [player(11, "Maya", "Patel", "FEMALE"), player(12, "David", "Lee")],
       eventId: "2",
       seed: 2,
       position: 2,

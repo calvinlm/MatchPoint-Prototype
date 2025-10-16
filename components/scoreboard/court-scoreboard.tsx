@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import type { Match } from "@/lib/types"
+import type { Match, Team } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { Contrast, QrCode, Settings } from "lucide-react"
 
@@ -37,8 +37,11 @@ export function CourtScoreboard({
   const teamAWins = match.games.filter((game) => game.scoreA > game.scoreB).length
   const teamBWins = match.games.filter((game) => game.scoreB > game.scoreA).length
 
-  const getTeamName = (team: any) => {
-    return team.name || `${team.players[0]?.firstName} ${team.players[0]?.lastName}` || "Team"
+  const getTeamName = (team: Team) => {
+    if (team.name) return team.name
+    const primaryPlayer = team.players?.[0]
+    if (primaryPlayer?.name) return primaryPlayer.name
+    return "Team"
   }
 
   // Auto-hide controls after 5 seconds

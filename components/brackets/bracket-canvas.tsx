@@ -35,8 +35,6 @@ export function BracketCanvas({ matches, onMatchClick, className }: BracketCanva
   const calculatePositions = useCallback(() => {
     const positions: Record<string, { x: number; y: number }> = {}
     const rounds = Math.max(...matches.map((m) => m.round))
-    const nodeWidth = 200
-    const nodeHeight = 120
     const horizontalSpacing = 280
     const verticalSpacing = 140
 
@@ -118,7 +116,7 @@ export function BracketCanvas({ matches, onMatchClick, className }: BracketCanva
           // Find previous round matches that feed into this match
           const prevRoundMatches = matches.filter((m) => m.round === match.round - 1)
 
-          prevRoundMatches.slice(0, 2).forEach((prevMatch, index) => {
+          prevRoundMatches.slice(0, 2).forEach((prevMatch) => {
             const prevPos = positions[prevMatch.id]
             if (prevPos) {
               const key = `${prevMatch.id}-${match.id}`

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import type { UserRole, Match } from "@/lib/types"
+import { createMockPlayer } from "@/lib/mock-data"
 import { Play, Search, RefreshCw, Filter, Grid, List } from "lucide-react"
 
 // Mock live matches data
@@ -21,14 +22,14 @@ const mockLiveMatches: (Match & { eventName: string; refereeName?: string; durat
     teams: [
       {
         id: "1",
-        players: [{ id: "1", firstName: "John", lastName: "Smith" }],
+        players: [createMockPlayer({ id: 1, firstName: "John", lastName: "Smith" })],
         eventId: "1",
         name: "Dynamic Duo",
         seed: 1,
       },
       {
         id: "2",
-        players: [{ id: "2", firstName: "Mike", lastName: "Johnson" }],
+        players: [createMockPlayer({ id: 2, firstName: "Mike", lastName: "Johnson" })],
         eventId: "1",
         name: "Power Players",
         seed: 4,
@@ -54,14 +55,14 @@ const mockLiveMatches: (Match & { eventName: string; refereeName?: string; durat
     teams: [
       {
         id: "3",
-        players: [{ id: "3", firstName: "Emma", lastName: "White" }],
+        players: [createMockPlayer({ id: 3, firstName: "Emma", lastName: "White", gender: "FEMALE" })],
         eventId: "2",
         name: "Mixed Masters",
         seed: 2,
       },
       {
         id: "4",
-        players: [{ id: "4", firstName: "Chris", lastName: "Davis" }],
+        players: [createMockPlayer({ id: 4, firstName: "Chris", lastName: "Davis" })],
         eventId: "2",
         name: "Court Crushers",
         seed: 3,
@@ -85,14 +86,14 @@ const mockLiveMatches: (Match & { eventName: string; refereeName?: string; durat
     teams: [
       {
         id: "5",
-        players: [{ id: "5", firstName: "Lisa", lastName: "Garcia" }],
+        players: [createMockPlayer({ id: 5, firstName: "Lisa", lastName: "Garcia", gender: "FEMALE" })],
         eventId: "1",
         name: "Net Ninjas",
         seed: 6,
       },
       {
         id: "6",
-        players: [{ id: "6", firstName: "Ryan", lastName: "Taylor" }],
+        players: [createMockPlayer({ id: 6, firstName: "Ryan", lastName: "Taylor" })],
         eventId: "1",
         name: "Court Kings",
         seed: 7,

@@ -9,7 +9,7 @@ import { Clock, Users, ArrowRight } from "lucide-react"
 interface QueuePreviewProps {
   queueItems: (QueueItem & { match: Match })[]
   onViewFullQueue?: () => void
-  onAssignToCourt?: (matchId: string) => void
+  onAssignToCourt?: (matchId: number | string) => void
 }
 
 export function QueuePreview({ queueItems, onViewFullQueue, onAssignToCourt }: QueuePreviewProps) {

@@ -7,17 +7,18 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { AppLayout } from "@/components/layout/app-layout"
-import { TeamBuilderDialog, type GeneratedTeam } from "@/components/manage-teams/team-builder-dialog"
+import { TeamBuilderDialog, type GeneratedTeam, TeamCreatePayload } from "@/components/manage-teams/team-builder-dialog"
 import { SavedTeamsList } from "@/components/manage-teams/saved-teams-table"
 import { TeamCard } from "@/components/manage-teams/team-card"
 import type { Player, UserRole } from "@/lib/types"
+import { readErrorMessage } from "@/lib/http"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "https://matchpoint-prototype.onrender.com"
 
 type ViewMode = "list" | "grid"
 type SortKey = "id" | "category" | "level" | "players"
 type SortDir = "asc" | "desc"
-type AgeGroupFilter = "all" | "Junior (17 below)" | "18+" | "35+" | "55+"
+type AgeGroupFilter = "all" | "Junior (17 below)" | "18+" | "35+" | "50+"
 type CategoryFilter =
   | "all"
   | "Mens Singles"
@@ -26,6 +27,24 @@ type CategoryFilter =
   | "Womens Doubles"
   | "Mixed Doubles"
 type LevelFilter = "all" | "Novice" | "Intermediate" | "Advanced"
+
+async function createTeam(payload: TeamCreatePayload): Promise<GeneratedTeam> {
+const res = await fetch(`${API_BASE}/api/teams`, {
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify(payload),
+})
+
+
+if (!res.ok) {
+const message = await readErrorMessage(res, "Failed to create team")
+throw new Error(message)
+}
+
+
+// server returns the canonical GeneratedTeam shape
+return res.json()
+}
 
 export default function ManageTeamsPage() {
   const userRoles: UserRole[] = ["director"]
@@ -54,20 +73,29 @@ export default function ManageTeamsPage() {
           fetch(`${API_BASE}/api/players`),
           fetch(`${API_BASE}/api/teams`),
         ])
-        if (!pRes.ok) throw new Error("Failed to fetch players.")
-        if (!tRes.ok) throw new Error("Failed to fetch teams.")
+        if (!pRes.ok) {
+          const message = await readErrorMessage(pRes, "Failed to fetch players.")
+          throw new Error(message)
+        }
+        if (!tRes.ok) {
+          const message = await readErrorMessage(tRes, "Failed to fetch teams.")
+          throw new Error(message)
+        }
         const [pData, tData] = await Promise.all([pRes.json(), tRes.json()])
         setPlayers(pData)
         setSavedTeams(tData) // <- now from backend
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Failed to load data."
         console.error(err)
-        setError(err.message)
+        setError(message)
       } finally {
         setLoading(false)
       }
     }
     loadPlayersAndTeams()
   }, [])
+
+  
 
     // —— CRUD handlers (unchanged, just lifted here) ——
     const handleSaveTeam = async (team: GeneratedTeam) => {
@@ -87,7 +115,8 @@ export default function ManageTeamsPage() {
         body: JSON.stringify(body),
       })
       if (!res.ok) {
-        alert("Failed to update team")
+        const message = await readErrorMessage(res, "Failed to update team")
+        alert(message)
         return
       }
       const updated = await res.json()
@@ -108,7 +137,8 @@ export default function ManageTeamsPage() {
         body: JSON.stringify(body),
       })
       if (!res.ok) {
-        alert("Failed to create team")
+        const message = await readErrorMessage(res, "Failed to create team")
+        alert(message)
         return
       }
       const created = await res.json()
@@ -126,7 +156,8 @@ export default function ManageTeamsPage() {
     if (!confirm("Are you sure you want to delete this team?")) return
     const res = await fetch(`${API_BASE}/api/teams/${teamId}`, { method: "DELETE" })
     if (!res.ok) {
-      alert("Delete failed")
+      const message = await readErrorMessage(res, "Failed to delete team")
+      alert(message)
       return
     }
     setSavedTeams((prev) => prev.filter((t) => t.id !== teamId))
@@ -135,11 +166,19 @@ export default function ManageTeamsPage() {
   const handleClearAllTeams = async () => {
     if (!confirm("Clear all saved teams?")) return
     try {
-      await fetch(`${API_BASE}/api/teams`, { method: "DELETE" })
-    } finally {
+      const res = await fetch(`${API_BASE}/api/teams`, { method: "DELETE" })
+      if (!res.ok) {
+        const message = await readErrorMessage(res, "Failed to clear teams")
+        throw new Error(message)
+      }
       setSavedTeams([])
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to clear teams."
+      alert(message)
     }
   }
+
+  
 
   // —— FILTER + SORT like Players page ——
   const filtered = useMemo(() => {
@@ -257,7 +296,7 @@ export default function ManageTeamsPage() {
               <SelectItem value="Junior (17 below)">Junior (≤17)</SelectItem>
               <SelectItem value="18+">18+</SelectItem>
               <SelectItem value="35+">35+</SelectItem>
-              <SelectItem value="55+">55+</SelectItem>
+              <SelectItem value="50+">50+</SelectItem>
             </SelectContent>
           </Select>
 
@@ -358,6 +397,7 @@ export default function ManageTeamsPage() {
           onSave={handleSaveTeam}      // your create/update logic
           editingTeam={editingTeam}
           existingTeams={savedTeams}   // if you still use local previewing
+          onCreate={createTeam}
         />
       </div>
     </AppLayout>

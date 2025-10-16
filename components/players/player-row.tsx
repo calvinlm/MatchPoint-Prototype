@@ -15,12 +15,11 @@ interface PlayerRowProps {
 
 export function PlayerRow({ player, onEdit, onDelete, onToggleCheckIn }: PlayerRowProps) {
   const initials = player.name
-    ? player.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()
+    ? player.name.split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase()
     : "?"
 
-  const genderLabel =
-    (player as any).gender ? String((player as any).gender).toLowerCase() : "—"
-  const ageLabel = (player as any).age ?? "—"
+  const genderLabel = player.gender ? String(player.gender).toLowerCase() : "—"
+  const ageLabel = Number.isFinite(player.age) ? player.age : "—"
 
   return (
     // Mobile: stacked; sm+: 7-column grid aligned with header

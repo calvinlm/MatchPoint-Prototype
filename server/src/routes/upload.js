@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import crypto from 'crypto'
 import { requireAuth } from '../middleware/auth.js'
+import { sendError } from '../utils/http.js'
 
 const router = Router()
 
@@ -14,7 +15,7 @@ router.get('/signature', requireAuth, async (req, res) => {
   const folder = process.env.CLOUDINARY_UPLOAD_FOLDER || 'match-control'
 
   if (!cloudName || !apiKey || !apiSecret) {
-    return res.status(500).json({ error: 'Cloudinary env vars missing' })
+    return sendError(res, 500, 'CLOUDINARY_CONFIG_MISSING', 'Cloudinary env vars missing.')
   }
 
   const timestamp = Math.floor(Date.now() / 1000)

@@ -1,16 +1,15 @@
 "use client"
 
 import { AppLayout } from "@/components/layout/app-layout"
-import { KpiCard } from "@/components/dashboard/kpi-card"
 import { CourtCard } from "@/components/dashboard/court-card"
 import { QueuePreview } from "@/components/dashboard/queue-preview"
 import { AlertsPanel } from "@/components/dashboard/alerts-panel"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import type { UserRole, Court, Match } from "@/lib/types"
-import { Trophy, Users, Play, CheckCircle, Plus, UserPlus, MoreHorizontal } from "lucide-react"
+import { Plus, UserPlus, MoreHorizontal } from "lucide-react"
+import { StandingsPanel, type Bracket, type StandingRow } from "@/components/dashboard/standings-panel"
 
-// Mock data for demonstration
 const mockCourts: Court[] = [
   { id: "1", name: "Court 1", location: "Main Hall", status: "playing" },
   { id: "2", name: "Court 2", location: "Main Hall", status: "idle" },
@@ -25,8 +24,40 @@ const mockMatches: Match[] = [
     eventId: "1",
     round: 1,
     teams: [
-      { id: "1", players: [{ id: "1", firstName: "John", lastName: "Smith" }], eventId: "1" },
-      { id: "2", players: [{ id: "2", firstName: "Jane", lastName: "Doe" }], eventId: "1" },
+      {
+        id: "1",
+        players: [
+          {
+            id: 1,
+            name: "John Smith",
+            age: 30,
+            gender: "MALE",
+            address: "",
+            contactNumber: "",
+            createdAt: "2024-01-01T00:00:00Z",
+            firstName: "John",
+            lastName: "Smith",
+          },
+        ],
+        eventId: "1",
+      },
+      {
+        id: "2",
+        players: [
+          {
+            id: 2,
+            name: "Jane Doe",
+            age: 28,
+            gender: "FEMALE",
+            address: "",
+            contactNumber: "",
+            createdAt: "2024-01-01T00:00:00Z",
+            firstName: "Jane",
+            lastName: "Doe",
+          },
+        ],
+        eventId: "1",
+      },
     ],
     status: "live",
     games: [],
@@ -37,8 +68,40 @@ const mockMatches: Match[] = [
     eventId: "1",
     round: 1,
     teams: [
-      { id: "3", players: [{ id: "3", firstName: "Mike", lastName: "Johnson" }], eventId: "1" },
-      { id: "4", players: [{ id: "4", firstName: "Sarah", lastName: "Wilson" }], eventId: "1" },
+      {
+        id: "3",
+        players: [
+          {
+            id: 3,
+            name: "Mike Johnson",
+            age: 31,
+            gender: "MALE",
+            address: "",
+            contactNumber: "",
+            createdAt: "2024-01-01T00:00:00Z",
+            firstName: "Mike",
+            lastName: "Johnson",
+          },
+        ],
+        eventId: "1",
+      },
+      {
+        id: "4",
+        players: [
+          {
+            id: 4,
+            name: "Sarah Wilson",
+            age: 27,
+            gender: "FEMALE",
+            address: "",
+            contactNumber: "",
+            createdAt: "2024-01-01T00:00:00Z",
+            firstName: "Sarah",
+            lastName: "Wilson",
+          },
+        ],
+        eventId: "1",
+      },
     ],
     status: "queued",
     games: [],
@@ -69,8 +132,22 @@ const mockAlerts = [
   },
 ]
 
+// --- Standings demo data (matches your screenshot structure) ---
+const bracketA: StandingRow[] = [
+  { rank: 1, players: "Andrew / Jason", wins: 3, losses: 0, pa: 33, pl: 10, quotient: 3.3 },
+  { rank: 2, players: "Jake / Mike",    wins: 2, losses: 1, pa: 25, pl: 25, quotient: 1.0 },
+  { rank: 3, players: "Santino / Johnny", wins: 1, losses: 2, pa: 18, pl: 22, quotient: 0.82 },
+  { rank: 4, players: "Joe / CJ",         wins: 0, losses: 3, pa: 11, pl: 33, quotient: 0.33 },
+]
+
+const mockBrackets: Bracket[] = [
+  { id: "novice_md_a", name: "35+ Novice MD", pool: "Bracket A", standings: bracketA },
+  { id: "novice_md_b", name: "35+ Novice MD", pool: "Bracket B", standings: bracketA.map(r => ({ ...r, rank: r.rank, players: r.players + " B" })) },
+  { id: "novice_md_c", name: "35+ Novice MD", pool: "Bracket C", standings: bracketA.map(r => ({ ...r, rank: r.rank, players: r.players + " C" })) },
+]
+
 export default function DashboardPage() {
-  const userRoles: UserRole[] = ["director"] // Mock user role
+  const userRoles: UserRole[] = ["director"]
 
   return (
     <AppLayout userRoles={userRoles} userName="Tournament Director">
@@ -83,9 +160,7 @@ export default function DashboardPage() {
               <span>March 15-17, 2024</span>
               <span>•</span>
               <span>Riverside Sports Complex</span>
-              <Badge variant="outline" className="ml-2">
-                Day 2 of 3
-              </Badge>
+              <Badge variant="outline" className="ml-2">Day 2 of 3</Badge>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -103,37 +178,11 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard
-            title="Courts Active"
-            value="3/4"
-            change={{ value: "+1", trend: "up" }}
-            icon={<Play className="h-5 w-5" />}
-          />
-          <KpiCard
-            title="In Queue"
-            value="12"
-            change={{ value: "-2", trend: "down" }}
-            icon={<Users className="h-5 w-5" />}
-          />
-          <KpiCard
-            title="Live Matches"
-            value="3"
-            change={{ value: "+1", trend: "up" }}
-            icon={<Trophy className="h-5 w-5" />}
-          />
-          <KpiCard
-            title="Completed Today"
-            value="47"
-            change={{ value: "+15", trend: "up" }}
-            icon={<CheckCircle className="h-5 w-5" />}
-          />
-        </div>
+        {/* Standings (replaces KPI grid) */}
+        <StandingsPanel brackets={mockBrackets} defaultBracketId="novice_md_a" />
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Courts Grid */}
           <div className="lg:col-span-2 space-y-4">
             <h2 className="text-lg font-semibold text-foreground">Courts Overview</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -149,7 +198,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Right Sidebar */}
           <div className="space-y-6">
             <QueuePreview
               queueItems={mockQueueItems}
@@ -160,11 +208,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Footer CTA */}
         <div className="flex justify-center pt-4">
-          <Button variant="outline" size="lg">
-            View Full Queue
-          </Button>
+          <Button variant="outline" size="lg">View Full Queue</Button>
         </div>
       </div>
     </AppLayout>

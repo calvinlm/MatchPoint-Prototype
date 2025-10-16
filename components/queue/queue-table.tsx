@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import type { QueueItem, Match, Court } from "@/lib/types"
+import type { QueueItem, Match, Court, Team } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import {
   GripVertical,
@@ -57,8 +57,11 @@ export function QueueTable({
     return true
   })
 
-  const getTeamName = (team: any) => {
-    return team.name || `${team.players[0]?.firstName} ${team.players[0]?.lastName}` || "TBD"
+  const getTeamName = (team: Team) => {
+    if (team.name) return team.name
+    const primaryPlayer = team.players?.[0]
+    if (primaryPlayer?.name) return primaryPlayer.name
+    return "TBD"
   }
 
   const getEstimatedTime = (priority: number) => {

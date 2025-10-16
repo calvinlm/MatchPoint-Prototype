@@ -24,14 +24,38 @@ const mockMatch: Match = {
   teams: [
     {
       id: "1",
-      players: [{ id: "1", firstName: "John", lastName: "Smith" }],
+      players: [
+        {
+          id: 1,
+          name: "John Smith",
+          age: 30,
+          gender: "MALE",
+          address: "",
+          contactNumber: "",
+          createdAt: "2024-01-01T00:00:00Z",
+          firstName: "John",
+          lastName: "Smith",
+        },
+      ],
       eventId: "1",
       seed: 1,
       name: "Team Alpha",
     },
     {
       id: "2",
-      players: [{ id: "2", firstName: "Jane", lastName: "Doe" }],
+      players: [
+        {
+          id: 2,
+          name: "Jane Doe",
+          age: 28,
+          gender: "FEMALE",
+          address: "",
+          contactNumber: "",
+          createdAt: "2024-01-01T00:00:00Z",
+          firstName: "Jane",
+          lastName: "Doe",
+        },
+      ],
       eventId: "1",
       seed: 8,
       name: "Team Beta",
@@ -54,7 +78,7 @@ export default function ScoringPage() {
   const [currentGameIndex, setCurrentGameIndex] = useState(0)
   const [notes, setNotes] = useState("")
   const [actions, setActions] = useState<ScoringAction[]>([])
-  const [isOnline, setIsOnline] = useState(true)
+  const [isOnline] = useState(true)
 
   const currentGame = match.games[currentGameIndex]
   const bestOf = 3 // This would come from event settings
@@ -175,7 +199,7 @@ export default function ScoringPage() {
         {!isOnline && (
           <Alert className="border-destructive">
             <WifiOff className="h-4 w-4" />
-            <AlertDescription>You're offline. Scores will sync when connection is restored.</AlertDescription>
+            <AlertDescription>You&apos;re offline. Scores will sync when connection is restored.</AlertDescription>
           </Alert>
         )}
 
@@ -192,7 +216,7 @@ export default function ScoringPage() {
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <Trophy className="h-4 w-4" />
-                    Men's Doubles 3.0
+                    Men&apos;s Doubles 3.0
                   </span>
                   <span className="flex items-center gap-1">
                     <MapPin className="h-4 w-4" />

@@ -3,6 +3,7 @@
 import type React from "react"
 import { useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import type { UserRole } from "@/lib/types"
 import { hasPermission } from "@/lib/auth"
@@ -41,9 +42,6 @@ interface NavigationProps {
   isMobile?: boolean
 }
 
-const baseItem =
-  "group flex items-center gap-3 pl-8 pr-4 py-3 text-nav leading-6 font-medium text-brand hover:opacity-80"
-
 export function Navigation({ userRoles, isMobile = false }: NavigationProps) {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
@@ -59,11 +57,13 @@ export function Navigation({ userRoles, isMobile = false }: NavigationProps) {
         {isOpen && (
           <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm md:hidden">
             <div className="fixed left-0 top-0 h-full w-64 bg-sidebar border-r border-sidebar-border p-4">
-              <div className="flex items-center justify-between mb-6">
-                <img 
+              <div className="mb-6 flex items-center justify-between">
+                <Image
                   src="/logo.svg"
                   alt="Matchpoint Logo"
-                  className="w-40 h-auto mb-1"  // you can adjust w-40 as needed
+                  width={160}
+                  height={36}
+                  className="h-auto w-40"
                 />
                 <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
                   <X className="h-5 w-5" />
@@ -100,11 +100,13 @@ export function Navigation({ userRoles, isMobile = false }: NavigationProps) {
 
   return (
     <nav className="hidden md:flex md:flex-col md:w-64 md:bg-sidebar md:border-r md:border-sidebar-border">
-      <div className="pt-6 px-6 pb-0 flex flex-col items-start">
-        <img 
+      <div className="flex flex-col items-start px-6 pb-0 pt-6">
+        <Image
           src="/logo.svg"
           alt="Matchpoint Logo"
-          className="w-70 h-auto mb-1"  // you can adjust w-40 as needed
+          width={200}
+          height={48}
+          className="h-auto w-48"
         />
       </div>
 

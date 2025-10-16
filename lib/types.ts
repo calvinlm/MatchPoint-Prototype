@@ -17,6 +17,9 @@ export interface Player {
   contactNumber: string
   createdAt: string
   checkedIn?: boolean
+  firstName?: string
+  lastName?: string
+  rating?: number
 }
 
 export interface Team {
@@ -25,10 +28,12 @@ export interface Team {
   players: Player[]
   seed?: number
   eventId: string
+  entryCode?: string
+  registrations?: { divisionId: number | null; entryCode: string }[]
 }
 
 export interface Court {
-  id: string
+  id: number | string
   name: string
   location?: string
   status: "idle" | "playing" | "hold" | "cleaning"
@@ -45,12 +50,12 @@ export interface Game {
 }
 
 export interface Match {
-  id: string
+  id: number | string
   number: number
   eventId: string
   round: number
   bracketSide?: "W" | "L"
-  courtId?: string
+  courtId?: number | null
   refereeId?: string
   teams: [Team, Team]
   status: "queued" | "assigned" | "live" | "completed" | "disputed"
@@ -59,6 +64,7 @@ export interface Match {
   scheduledAt?: Date
   startedAt?: Date
   endedAt?: Date
+  meta?: unknown
 }
 
 export interface Event {
@@ -74,8 +80,12 @@ export interface Event {
 }
 
 export interface QueueItem {
-  id: string
-  matchId: string
-  priority: number
+  id: number | string
+  matchId: number
+  courtId?: number | null
+  position: number
+  version: number
+  updatedAt?: string
+  priority?: number
   note?: string
 }

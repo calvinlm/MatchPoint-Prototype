@@ -21,7 +21,7 @@ export function PlayerCard({ player, onEdit, onDelete, onToggleCheckIn }: Player
   const initials = player.name
     ? player.name
         .split(" ")
-        .map((n) => n[0])
+        .map((n: string) => n[0])
         .slice(0, 2)
         .join("")
         .toUpperCase()

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
 import { PlayerCard } from "@/components/players/player-card"
 import { PlayerRow } from "@/components/players/player-row"
@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import type { UserRole, Player, Team } from "@/lib/types"
+import { Gender as GenderValues } from "@matchpoint/types"
+import type { Gender as GenderType } from "@matchpoint/types"
 import {
   Search,
   UserPlus,
@@ -28,6 +30,7 @@ import {
   DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { readErrorMessage } from "@/lib/http"
 
 
 const mockTeams: (Team & { eventName?: string; seed?: number })[] = [
@@ -58,7 +61,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "https://matchpoint-prototy
 type ViewMode = "grid" | "list"
 type SortKey = "name" | "gender" | "age" | "status"
 type SortDir = "asc" | "desc"
-type AgeCat = "all" | "junior" | "18plus" | "35plus" | "55plus"
+type AgeCat = "all" | "junior" | "18plus" | "35plus" | "50plus"
 type GenderFilter = "all" | "male" | "female"
 
 export default function PlayersPage() {
@@ -84,7 +87,7 @@ export default function PlayersPage() {
 
 type NewPlayerForm = {
   name: string
-  gender?: string // "male" | "female"
+  gender?: GenderType
   age?: number
   contactNumber?: string
   address?: string
@@ -100,13 +103,42 @@ const [form, setForm] = useState<NewPlayerForm>({
   checkedIn: false,
 })
 
-function normalizeGenderForAPI(g?: string) {
+function normalizeGenderForAPI(g?: GenderType) {
   if (!g) return undefined
-  const v = g.trim().toUpperCase()
-  // If your Prisma expects "MALE"/"FEMALE", this will satisfy it.
-  // If it expects other values, adjust mapping here.
-  if (v === "MALE" || v === "FEMALE") return v
-  return undefined
+  return g
+}
+
+function normalizeGender(gender: Player["gender"] | null | undefined) {
+  return String(gender ?? "").toLowerCase().trim()
+}
+
+function isWithinAgeCategory(ageValue: number | null | undefined, category: AgeCat) {
+  const n = Number(ageValue)
+  const age = Number.isFinite(n) ? n : null
+
+  if (category === "all" || age === null) return category === "all"
+  if (category === "junior") return age <= 17
+  if (category === "18plus") return age >= 18 && age <= 34
+  if (category === "35plus") return age >= 35 && age <= 49
+  if (category === "50plus") return age >= 50
+  return true
+}
+
+
+type CreatePlayerPayload = {
+  name: string
+  gender?: GenderType
+  age?: number
+  contactNumber?: string
+  address?: string
+  checkedIn: boolean
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) {
+    return error.message
+  }
+  return fallback
 }
 
 async function handleAddSubmit(e: React.FormEvent) {
@@ -118,9 +150,8 @@ async function handleAddSubmit(e: React.FormEvent) {
     return
   }
 
-  const payload: Record<string, any> = {
+  const payload: CreatePlayerPayload = {
     name: form.name.trim(),
-    // send uppercase enum if backend expects it
     gender: normalizeGenderForAPI(form.gender),
     age: typeof form.age === "number" ? form.age : undefined,
     contactNumber: form.contactNumber?.trim() || undefined,
@@ -137,11 +168,11 @@ async function handleAddSubmit(e: React.FormEvent) {
     })
 
     if (!res.ok) {
-      const text = await res.text().catch(() => "")
-      throw new Error(text || "Failed to create player.")
+      const message = await readErrorMessage(res, "Failed to create player.")
+      throw new Error(message)
     }
 
-    const created = await res.json()
+    const created = (await res.json()) as Player
 
     // Prepend to list so it appears immediately
     setPlayers((prev) => [created, ...prev])
@@ -156,8 +187,8 @@ async function handleAddSubmit(e: React.FormEvent) {
       checkedIn: false,
     })
     setAddOpen(false)
-  } catch (err: any) {
-    setAddError(err?.message || "Failed to create player.")
+  } catch (err: unknown) {
+    setAddError(getErrorMessage(err, "Failed to create player."))
   } finally {
     setIsSubmitting(false)
   }
@@ -185,15 +216,15 @@ async function handleEditSubmit(e: React.FormEvent) {
     })
 
     if (!res.ok) {
-      const text = await res.text().catch(() => "")
-      throw new Error(text || "Failed to update player.")
+      const message = await readErrorMessage(res, "Failed to update player.")
+      throw new Error(message)
     }
 
     const updated = await res.json()
     setPlayers((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
     setEditOpen(false)
-  } catch (err: any) {
-    setEditError(err.message)
+  } catch (err: unknown) {
+    setEditError(getErrorMessage(err, "Failed to update player."))
   } finally {
     setIsEditing(false)
   }
@@ -214,12 +245,15 @@ async function handleEditSubmit(e: React.FormEvent) {
     async function loadPlayers() {
       try {
         const res = await fetch(`${API_BASE}/api/players`)
-        if (!res.ok) throw new Error("Failed to fetch players.")
-        const data = await res.json()
+        if (!res.ok) {
+          const message = await readErrorMessage(res, "Failed to fetch players.")
+          throw new Error(message)
+        }
+        const data = (await res.json()) as Player[]
         setPlayers(data)
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Error fetching players:", err)
-        setError(err.message)
+        setError(getErrorMessage(err, "Failed to fetch players."))
       } finally {
         setLoading(false)
       }
@@ -227,19 +261,18 @@ async function handleEditSubmit(e: React.FormEvent) {
     loadPlayers()
   }, [])
 
-  // Helpers
-  const normGender = (g: any) => String(g ?? "").toLowerCase().trim()
-  const inAgeCat = (ageVal: any, cat: AgeCat) => {
-    const n = Number(ageVal)
-    const age = Number.isFinite(n) ? n : null
-
-    if (cat === "all" || age === null) return cat === "all"
-    if (cat === "junior") return age <= 17
-    if (cat === "18plus") return age >= 18 && age <= 34
-    if (cat === "35plus") return age >= 35 && age <= 54
-    if (cat === "55plus") return age >= 55
-    return true
-  }
+  const getComparableValue = useCallback((player: Player, key: SortKey) => {
+    switch (key) {
+      case "name":
+        return (player.name || "").toLowerCase()
+      case "gender":
+        return normalizeGender(player.gender)
+      case "age":
+        return Number.isFinite(player.age) ? player.age : Number.POSITIVE_INFINITY
+      case "status":
+        return player.checkedIn ? 1 : 2
+    }
+  }, [])
 
   // Filters for players
   const filteredPlayers = useMemo(() => {
@@ -247,45 +280,30 @@ async function handleEditSubmit(e: React.FormEvent) {
       .filter((p) => (p.name || "").toLowerCase().includes(searchTerm.toLowerCase()))
       .filter((p) => {
         if (statusFilter === "all") return true
-        const checked = (p as any).checkedIn === true
-        return statusFilter === "checked-in" ? checked : !checked
+        const checkedIn = p.checkedIn === true
+        return statusFilter === "checked-in" ? checkedIn : !checkedIn
       })
       .filter((p) => {
         if (genderFilter === "all") return true
-        const g = normGender((p as any).gender)
+        const g = normalizeGender(p.gender)
         if (genderFilter === "male") return g === "male" || g === "m"
         if (genderFilter === "female") return g === "female" || g === "f"
         return true
       })
-      .filter((p) => inAgeCat((p as any).age, ageCat))
+      .filter((p) => isWithinAgeCategory(p.age, ageCat))
   }, [players, searchTerm, statusFilter, genderFilter, ageCat])
-
-  function getComparable(p: Player, key: SortKey) {
-    switch (key) {
-      case "name":
-        return (p.name || "").toLowerCase()
-      case "gender":
-        return normGender((p as any).gender)
-      case "age":
-        return Number((p as any).age ?? Number.POSITIVE_INFINITY) // empty age goes last
-      case "status": {
-        const checked = (p as any).checkedIn ? 1 : 2 // Checked first for ASC
-        return checked
-      }
-    }
-  }
 
   const sortedPlayers = useMemo(() => {
     const arr = [...filteredPlayers]
     arr.sort((a, b) => {
-      const av = getComparable(a, sortKey)
-      const bv = getComparable(b, sortKey)
+      const av = getComparableValue(a, sortKey)
+      const bv = getComparableValue(b, sortKey)
       if (av < bv) return sortDir === "asc" ? -1 : 1
       if (av > bv) return sortDir === "asc" ? 1 : -1
       return 0
     })
     return arr
-  }, [filteredPlayers, sortKey, sortDir])
+  }, [filteredPlayers, sortKey, sortDir, getComparableValue])
 
   const toggleSort = (key: SortKey) => {
     if (key === sortKey) {
@@ -312,15 +330,15 @@ async function handleEditSubmit(e: React.FormEvent) {
   const handleEditPlayer = (id: string | number) => {
     const found = players.find((p) => String(p.id) === String(id))
     if (found) {
-      setEditTarget({ ...(found as any) })
+      setEditTarget({ ...found })
       setEditOpen(true)
     }
   }
 
   async function handleToggleCheckIn(id: string | number) {
-  const p = players.find((x) => String(x.id) === String(id)) as any
-  if (!p) return
-  const next = !Boolean(p.checkedIn)
+  const target = players.find((x) => String(x.id) === String(id))
+  if (!target) return
+  const next = !Boolean(target.checkedIn)
   try {
     const res = await fetch(`${API_BASE}/api/players/${id}`, {
       method: "PUT",
@@ -328,10 +346,10 @@ async function handleEditSubmit(e: React.FormEvent) {
       body: JSON.stringify({ checkedIn: next }),
     })
     if (!res.ok) {
-      const text = await res.text().catch(() => "")
-      throw new Error(text || "Failed to update check-in status.")
+      const message = await readErrorMessage(res, "Failed to update check-in status.")
+      throw new Error(message)
     }
-    const updated = await res.json()
+    const updated = (await res.json()) as Player
     setPlayers((prev) => prev.map((pl) => (pl.id === updated.id ? updated : pl)))
   } catch (e) {
     console.error(e)
@@ -340,9 +358,9 @@ async function handleEditSubmit(e: React.FormEvent) {
 }
 
 // When user clicks "Delete" in row/card
-const handleDeletePlayer = (id: string | number) => {
-  const found = players.find((p) => String(p.id) === String(id)) || null
-  setConfirmTarget(found || (null as any))
+  const handleDeletePlayer = (id: string | number) => {
+    const found = players.find((p) => String(p.id) === String(id)) || null
+  setConfirmTarget(found)
   setConfirmOpen(true)
 }
 
@@ -350,14 +368,17 @@ async function confirmDelete() {
   if (!confirmTarget) return
   setIsDeleting(true)
   try {
-    const id = confirmTarget.id as any
+    const id = confirmTarget.id
     const res = await fetch(`${API_BASE}/api/players/${id}`, { method: "DELETE" })
-    if (!res.ok) throw new Error("Failed to delete player.")
+    if (!res.ok) {
+      const message = await readErrorMessage(res, "Failed to delete player.")
+      throw new Error(message)
+    }
     setPlayers((prev) => prev.filter((p) => String(p.id) !== String(id)))
     setConfirmOpen(false)
     setConfirmTarget(null)
-  } catch (err: any) {
-    alert(err.message || "Delete failed.")
+  } catch (err: unknown) {
+    alert(getErrorMessage(err, "Delete failed."))
   } finally {
     setIsDeleting(false)
   }
@@ -433,14 +454,14 @@ async function confirmDelete() {
                       <Label htmlFor="gender">Gender</Label>
                       <Select
                         value={form.gender}
-                        onValueChange={(v) => setForm((s) => ({ ...s, gender: v }))}
+                        onValueChange={(v) => setForm((s) => ({ ...s, gender: v as GenderType }))}
                       >
                         <SelectTrigger id="gender">
                           <SelectValue placeholder="Select gender" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="MALE">Male</SelectItem>
-                          <SelectItem value="FEMALE">Female</SelectItem>
+                          <SelectItem value={GenderValues.MALE}>Male</SelectItem>
+                          <SelectItem value={GenderValues.FEMALE}>Female</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -521,7 +542,11 @@ async function confirmDelete() {
                         <Label>Name</Label>
                         <Input
                           value={editTarget.name}
-                          onChange={(e) => setEditTarget((s) => s ? { ...s, name: e.target.value } : s)}
+                          onChange={(e) =>
+                            setEditTarget((s: Player | null) =>
+                              s ? { ...s, name: e.target.value } : s
+                            )
+                          }
                           required
                         />
                       </div>
@@ -530,15 +555,17 @@ async function confirmDelete() {
                         <Select
                           value={editTarget?.gender ?? ""}
                           onValueChange={(v) =>
-                            setEditTarget((s) => (s ? { ...s, gender: v as "MALE" | "FEMALE" } : s))
+                            setEditTarget((s: Player | null) =>
+                              s ? { ...s, gender: v as GenderType } : s
+                            )
                           }
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Select gender" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="MALE">Male</SelectItem>
-                            <SelectItem value="FEMALE">Female</SelectItem>
+                            <SelectItem value={GenderValues.MALE}>Male</SelectItem>
+                            <SelectItem value={GenderValues.FEMALE}>Female</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -547,21 +574,33 @@ async function confirmDelete() {
                         <Input
                           type="number"
                           value={editTarget.age ?? ""}
-                          onChange={(e) => setEditTarget((s) => s ? { ...s, age: Number(e.target.value) } : s)}
+                          onChange={(e) =>
+                            setEditTarget((s: Player | null) =>
+                              s ? { ...s, age: Number(e.target.value) } : s
+                            )
+                          }
                         />
                       </div>
                       <div className="space-y-2">
                         <Label>Contact Number</Label>
                         <Input
                           value={editTarget.contactNumber}
-                          onChange={(e) => setEditTarget((s) => s ? { ...s, contactNumber: e.target.value } : s)}
+                          onChange={(e) =>
+                            setEditTarget((s: Player | null) =>
+                              s ? { ...s, contactNumber: e.target.value } : s
+                            )
+                          }
                         />
                       </div>
                       <div className="space-y-2 sm:col-span-2">
                         <Label>Address</Label>
                         <Input
                           value={editTarget.address}
-                          onChange={(e) => setEditTarget((s) => s ? { ...s, address: e.target.value } : s)}
+                          onChange={(e) =>
+                            setEditTarget((s: Player | null) =>
+                              s ? { ...s, address: e.target.value } : s
+                            )
+                          }
                         />
                       </div>
                     </div>
@@ -597,13 +636,15 @@ async function confirmDelete() {
                 <div className="mt-2 rounded-md border p-3 text-sm">
                   <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                     <span className="text-muted-foreground">Gender</span>
-                    <span className="capitalize">{String((confirmTarget as any)?.gender ?? "—").toLowerCase()}</span>
+                    <span className="capitalize">
+                      {confirmTarget?.gender ? String(confirmTarget.gender).toLowerCase() : "—"}
+                    </span>
                     <span className="text-muted-foreground">Age</span>
-                    <span>{(confirmTarget as any)?.age ?? "—"}</span>
+                    <span>{confirmTarget?.age ?? "—"}</span>
                     <span className="text-muted-foreground">Contact</span>
-                    <span>{(confirmTarget as any)?.contactNumber || "—"}</span>
+                    <span>{confirmTarget?.contactNumber || "—"}</span>
                     <span className="text-muted-foreground">Address</span>
-                    <span className="truncate">{(confirmTarget as any)?.address || "—"}</span>
+                    <span className="truncate">{confirmTarget?.address || "—"}</span>
                   </div>
                 </div>
 
@@ -669,7 +710,7 @@ async function confirmDelete() {
               <SelectItem value="junior">Junior (≤17)</SelectItem>
               <SelectItem value="18plus">18+</SelectItem>
               <SelectItem value="35plus">35+</SelectItem>
-              <SelectItem value="55plus">55+</SelectItem>
+              <SelectItem value="50plus">50+</SelectItem>
             </SelectContent>
           </Select>
 
@@ -719,7 +760,18 @@ async function confirmDelete() {
           <Badge variant="outline">{mockTeams.length} Teams (mock)</Badge>
           <Badge variant="outline" className="capitalize">View: {viewMode}</Badge>
           <Badge variant="outline" className="capitalize">Sort: {sortKey} ({sortDir})</Badge>
-          {ageCat !== "all" && <Badge variant="secondary">Age: {ageCat === "junior" ? "≤17" : ageCat === "18plus" ? "18+" : "55+"}</Badge>}
+          {ageCat !== "all" && (
+            <Badge variant="secondary">
+              Age:{" "}
+              {ageCat === "junior"
+                ? "≤17"
+                : ageCat === "18plus"
+                  ? "18+"
+                  : ageCat === "35plus"
+                    ? "35+"
+                    : "50+"}
+            </Badge>
+          )}
           {genderFilter !== "all" && <Badge variant="secondary">Gender: {genderFilter}</Badge>}
           {statusFilter !== "all" && <Badge variant="secondary">Status: {statusFilter}</Badge>}
           {(ageCat !== "all" || genderFilter !== "all" || statusFilter !== "all" || searchTerm) && (
@@ -759,7 +811,7 @@ async function confirmDelete() {
                 {sortedPlayers.map((player) => (
                   <PlayerCard
                     key={player.id}
-                    player={player as any}
+                    player={player}
                     onEdit={handleEditPlayer}
                     onDelete={handleDeletePlayer}
                     onToggleCheckIn={handleToggleCheckIn}
@@ -806,7 +858,7 @@ async function confirmDelete() {
                   {sortedPlayers.map((player) => (
                     <PlayerRow
                       key={player.id}
-                      player={player as any}
+                      player={player}
                       onEdit={handleEditPlayer}
                       onDelete={handleDeletePlayer}
                       onToggleCheckIn={handleToggleCheckIn}

@@ -1,42 +1,76 @@
-"use client"
+"use client";
 
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import type { Match } from "@/lib/types"
-import { cn } from "@/lib/utils"
-import { Clock, MapPin, Trophy, CheckCircle, Calendar, Users } from "lucide-react"
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { Clock, MapPin, Trophy, CheckCircle, Calendar, Users } from "lucide-react";
+
+type MatchStatus = "queued" | "assigned" | "live" | "completed" | "disputed";
+
+type MatchOpponent = {
+  name: string;
+  players: string[];
+  seed?: number;
+};
+
+type MatchTeam = {
+  id: string;
+  eventId: string;
+  players: Array<{ id: string; firstName?: string; lastName?: string; name?: string }>;
+};
+
+type MatchGame = {
+  seq: number;
+  scoreA: number;
+  scoreB: number;
+  serving?: "A" | "B";
+  timeoutsA?: number;
+  timeoutsB?: number;
+};
+
+export type PlayerMatch = {
+  id: string;
+  number: number;
+  eventId: string;
+  round: number;
+  courtId?: string;
+  status: MatchStatus;
+  teams: MatchTeam[];
+  games: MatchGame[];
+  winnerTeamId?: string;
+  scheduledAt?: Date;
+  startedAt?: Date;
+  endedAt?: Date;
+  eventName?: string;
+  estimatedTime?: Date;
+  opponent?: MatchOpponent;
+};
 
 interface MatchCardProps {
-  match: Match & {
-    eventName?: string
-    estimatedTime?: Date
-    opponent?: {
-      name: string
-      players: string[]
-      seed?: number
-    }
-  }
-  type: "upcoming" | "completed"
-  onCheckIn?: () => void
-  onViewResult?: () => void
-  className?: string
+  match: PlayerMatch;
+  type: "upcoming" | "completed";
+  onCheckIn?: () => void;
+  onViewResult?: () => void;
+  className?: string;
 }
 
 export function MatchCard({ match, type, onCheckIn, onViewResult, className }: MatchCardProps) {
-  const isUpcoming = type === "upcoming"
-  const hasResult = match.winnerTeamId !== undefined
+  const isUpcoming = type === "upcoming";
+  const hasResult = typeof match.winnerTeamId !== "undefined";
 
   const getMatchResult = () => {
-    if (!hasResult) return null
-    const isWinner = match.winnerTeamId === match.teams[0].id // Assuming current player is team 0
-    return isWinner ? "Won" : "Lost"
-  }
+    if (!hasResult) return null;
+    const playerTeamId = match.teams[0]?.id;
+    if (!playerTeamId) return null;
+    const isWinner = match.winnerTeamId === playerTeamId;
+    return isWinner ? "Won" : "Lost";
+  };
 
   const getScoreDisplay = () => {
-    if (match.games.length === 0) return "TBD"
-    return match.games.map((game) => `${game.scoreA}-${game.scoreB}`).join(", ")
-  }
+    if (!match.games.length) return "TBD";
+    return match.games.map((game) => `${game.scoreA}-${game.scoreB}`).join(", ");
+  };
 
   return (
     <Card className={cn("hover:shadow-md transition-shadow", className)}>
@@ -57,7 +91,7 @@ export function MatchCard({ match, type, onCheckIn, onViewResult, className }: M
                     "text-xs",
                     getMatchResult() === "Won"
                       ? "bg-primary text-primary-foreground"
-                      : "bg-destructive text-destructive-foreground",
+                      : "bg-destructive text-destructive-foreground"
                   )}
                 >
                   {getMatchResult()}
@@ -82,12 +116,12 @@ export function MatchCard({ match, type, onCheckIn, onViewResult, className }: M
             )}
           </div>
           {match.opponent?.players && (
-            <p className="text-sm text-muted-foreground ml-6">{match.opponent.players.join(" & ")}</p>
+            <p className="ml-6 text-sm text-muted-foreground">{match.opponent.players.join(" & ")}</p>
           )}
         </div>
 
         {/* Match Details */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+        <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
           {isUpcoming ? (
             <>
               <div className="flex items-center gap-2 text-muted-foreground">
@@ -124,7 +158,7 @@ export function MatchCard({ match, type, onCheckIn, onViewResult, className }: M
               {match.status === "assigned" && (
                 <Button size="sm" onClick={onCheckIn} className="flex-1">
                   <CheckCircle className="h-4 w-4 mr-2" />
-                  I'm Here
+                  I&apos;m Here
                 </Button>
               )}
               {match.status === "queued" && (
@@ -148,5 +182,5 @@ export function MatchCard({ match, type, onCheckIn, onViewResult, className }: M
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

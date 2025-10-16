@@ -40,6 +40,10 @@ import authRoutes from './routes/auth.js'
 import matchRoutes from './routes/match.js'
 import playersRoutes from './routes/players.js'
 import teamsRouter from "./routes/teams.js";
+import publicTournamentsRouter from "./routes/public-tournaments.js";
+import queueRouter from "./routes/queue.js";
+import { registerSocketServer, publicTournamentRoom } from "./socket/context.js";
+import { sendError } from "./utils/http.js";
 
 const app = express()
 
@@ -54,6 +58,16 @@ app.use(cors(corsOptions))
 // handle preflight on all routes
 app.options('*', cors(corsOptions))
 
+// ---------- Cache headers ----------
+app.use((req, res, next) => {
+  if (req.path?.startsWith('/api') && !req.path.startsWith('/api/public')) {
+    if (!res.get('Cache-Control')) {
+      res.set('Cache-Control', 'private, no-store, max-age=0, must-revalidate')
+    }
+  }
+  next()
+})
+
 // ---------- Routes ----------
 app.get('/', (_req, res) => res.status(200).send('✅ MatchPoint API is running'))
 app.get('/health', (_req, res) => res.status(200).send('ok'))
@@ -65,10 +79,12 @@ app.use('/auth', authRoutes)
 app.use('/matches', matchRoutes)
 app.use('/api/players', playersRoutes)
 app.use("/api/teams", teamsRouter);
+app.use("/api/public/tournaments", publicTournamentsRouter);
+app.use("/api/queue", queueRouter);
 
 // 404 handler (keep last)
 app.use((req, res) => {
-  res.status(404).json({ error: 'Not found' })
+  sendError(res, 404, "NOT_FOUND", "Not found.")
 })
 
 // ---------- Server / Socket.IO ----------
@@ -87,11 +103,23 @@ const io = new SocketIOServer(server, {
   },
 })
 
+registerSocketServer(io);
+
 io.on('connection', (socket) => {
   console.log('socket connected', socket.id)
 
   socket.on('join_match', (matchId) => socket.join(`match:${matchId}`))
   socket.on('leave_match', (matchId) => socket.leave(`match:${matchId}`))
+  socket.on('join_public_tournament', (tournamentId) => {
+    const room = publicTournamentRoom(tournamentId)
+    socket.join(room)
+    socket.emit('public.joined', { tournamentId })
+  })
+  socket.on('leave_public_tournament', (tournamentId) => {
+    const room = publicTournamentRoom(tournamentId)
+    socket.leave(room)
+    socket.emit('public.left', { tournamentId })
+  })
   socket.on('score_update', ({ matchId, payload }) => {
     io.to(`match:${matchId}`).emit('score_update', payload)
   })

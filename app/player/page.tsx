@@ -2,15 +2,16 @@
 
 import { useState } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
-import { MatchCard } from "@/components/player/match-card"
+import { MatchCard, type PlayerMatch } from "@/components/player/match-card"
 import { TeamCard } from "@/components/player/team-card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { UserRole } from "@/lib/types"
+import { createMockPlayer } from "@/lib/mock-data"
 import { Trophy, Calendar, Users, Search, Plus } from "lucide-react"
 
 // Mock data for player
-const mockUpcomingMatches = [
+const mockUpcomingMatches: PlayerMatch[] = [
   {
     id: "1",
     number: 105,
@@ -51,7 +52,7 @@ const mockUpcomingMatches = [
   },
 ]
 
-const mockCompletedMatches = [
+const mockCompletedMatches: PlayerMatch[] = [
   {
     id: "3",
     number: 102,
@@ -82,8 +83,8 @@ const mockTeams = [
   {
     id: "1",
     players: [
-      { id: "1", firstName: "You", lastName: "Player" },
-      { id: "2", firstName: "Your", lastName: "Partner" },
+      createMockPlayer({ id: 1, firstName: "You", lastName: "Player" }),
+      createMockPlayer({ id: 2, firstName: "Your", lastName: "Partner" }),
     ],
     eventId: "1",
     name: "Dynamic Duo",
@@ -95,8 +96,8 @@ const mockTeams = [
   {
     id: "2",
     players: [
-      { id: "1", firstName: "You", lastName: "Player" },
-      { id: "3", firstName: "Another", lastName: "Partner" },
+      createMockPlayer({ id: 1, firstName: "You", lastName: "Player" }),
+      createMockPlayer({ id: 3, firstName: "Another", lastName: "Partner" }),
     ],
     eventId: "2",
     name: "Mixed Masters",
@@ -191,7 +192,7 @@ export default function PlayerPage() {
                   <Calendar className="h-8 w-8 text-muted-foreground" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">No upcoming matches</h3>
-                <p className="text-muted-foreground mb-4">You don't have any matches scheduled at the moment.</p>
+                <p className="text-muted-foreground mb-4">You don&apos;t have any matches scheduled at the moment.</p>
                 <Button>
                   <Search className="h-4 w-4 mr-2" />
                   Browse Brackets
@@ -236,7 +237,7 @@ export default function PlayerPage() {
                   <Users className="h-8 w-8 text-muted-foreground" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">No teams</h3>
-                <p className="text-muted-foreground mb-4">You haven't joined any teams yet.</p>
+                <p className="text-muted-foreground mb-4">You haven&apos;t joined any teams yet.</p>
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
                   Join Team
